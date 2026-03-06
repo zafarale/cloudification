@@ -1,0 +1,69 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Lesson {
+  title: string;
+  description: string;
+  href: string;
+  order: number;
+  duration?: number;
+  tags?: string[];
+  icon?: string;        // ← add this
+}
+
+interface Props {
+  lessons: Lesson[];
+  color: string;
+}
+
+const { lessons, color } = Astro.props;
+---
+
+<section class="max-w-4xl mx-auto px-6 pb-24">
+  <div class="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/5">
+    {lessons.map((lesson, index) => (
+      <a
+        href={lesson.href}
+        class="flex items-center gap-6 px-6 py-5 hover:bg-white/5 transition-colors group"
+      >
+        <!-- Number or icon -->
+        {lesson.icon ? (
+          <div class="w-8 h-8 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
+            <Icon name={lesson.icon} class="w-8 h-8" />
+          </div>
+        ) : (
+          <span class={`text-2xl font-black text-${color}-500/30 group-hover:text-${color}-500/60 transition-colors w-8 shrink-0 tabular-nums font-mono`}>
+            {String(index + 1).padStart(2, '0')}
+          </span>
+        )}
+
+        <div class="flex-1 min-w-0">
+          <p class={`font-semibold group-hover:text-${color}-100 transition-colors`}>
+            {lesson.title}
+          </p>
+          <p class="text-sm text-gray-500 mt-0.5 truncate">
+            {lesson.description}
+          </p>
+          {lesson.tags && lesson.tags.length > 0 && (
+            <div class="flex gap-2 mt-2">
+              {lesson.tags.map(tag => (
+                <span class={`text-xs px-2 py-0.5 rounded-full bg-${color}-500/10 text-${color}-400 border border-${color}-500/20`}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div class="flex items-center gap-4 shrink-0">
+          {lesson.duration && (
+            <span class="text-xs text-gray-600">{lesson.duration}m</span>
+          )}
+          <span class={`text-gray-600 group-hover:text-${color}-400 group-hover:translate-x-1 transition-all duration-200`}>
+            →
+          </span>
+        </div>
+      </a>
+    ))}
+  </div>
+</section>

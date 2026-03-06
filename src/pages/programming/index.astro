@@ -1,0 +1,68 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TutorialHeader from '../../components/TutorialHeader.astro';
+import SharedLessons from '../../components/SharedLessons.astro';
+import CrossPathNote from '../../components/CrossPathNote.astro';
+import FeatureCard from '../../components/FeatureCard.astro';
+import { getCollection } from 'astro:content';
+
+const javaLessons = await getCollection('programming', ({ id }) =>
+  id.startsWith('java/')
+);
+const rustLessons = await getCollection('programming', ({ id }) =>
+  id.startsWith('rust/')
+);
+const commonLessons = await getCollection('programming', ({ id }) =>
+  id.startsWith('common/')
+);
+---
+
+<BaseLayout 
+  title="Programming"
+  description="Learn programming from fundamentals to production. Choose Java for enterprise development or Rust for systems programming with memory safety."
+  keywords={['Java tutorials', 'Rust programming', 'systems programming', 'JVM', 'memory safety', 'object-oriented programming', 'Spring Boot']}
+  certifications={['Oracle Certified Professional Java SE', 'Spring Professional Certification']}
+>
+
+  <TutorialHeader
+    title="Programming"
+    description="Choose a language track. Both share foundational concepts — you'll see them highlighted as you progress."
+    emoji="💻"
+    lessonCount={javaLessons.length + rustLessons.length}
+    sharedCount={commonLessons.length}
+  />
+
+  <!-- Track cards -->
+  <section class="max-w-5xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+    <FeatureCard
+      title="Java"
+      description="Object-oriented, platform-independent, and battle-tested in enterprise. From JVM fundamentals to Spring Boot."
+      href="/programming/java"
+      emoji="☕"
+      color="orange"
+      lessonCount={javaLessons.length}
+    />
+
+    <FeatureCard
+      title="Rust"
+      description="Systems programming with memory safety guaranteed at compile time. No GC, no undefined behavior."
+      href="/programming/rust"
+      emoji="🦀"
+      color="red"
+      lessonCount={rustLessons.length}
+    />
+  </section>
+
+  <SharedLessons
+    lessons={commonLessons}
+    basePath="/programming/common"
+    title="Shared across both tracks"
+    color="orange"
+  />
+
+  <CrossPathNote
+    title="Programming concepts connect to every other path"
+    description="Cloud services like AWS Lambda and Azure Functions run your code. CI/CD pipelines build and deploy your applications. Data access patterns differ by language. Look out for cross-path callouts as you progress."
+  />
+
+</BaseLayout>

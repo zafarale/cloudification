@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import LessonSidebar from '../../../components/LessonSidebar.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import PrevNext from '../../../components/PrevNext.astro';
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const all = await getCollection('networking');
+  const lessons = all.filter(({ id }) => id.startsWith('security/'));
+  const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+
+  return sorted.map((entry, index) => ({
+    params: {
+      slug: entry.id
+        .replace('security/', '')
+        .replace(/\.mdx$/, '')
+        .replace(/\.md$/, ''),
+    },
+    props: {
+      entry,
+      prev: sorted[index - 1] ?? null,
+      next: sorted[index + 1] ?? null,
+    },
+  }));
+}
+
+const { entry, prev, next } = Astro.props;
+const { Content } = await render(entry);
+
+const allLessons = await getCollection('networking', ({ id }) =>
+  id.startsWith('security/')
+);
+const sorted = allLessons.sort((a, b) => a.data.order - b.data.order);
+
+const sidebarLessons = sorted.map(lesson => ({
+  title: lesson.data.title,
+  href: `/networking/security/${lesson.id.replace('security/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  icon: lesson.data.icon,
+}));
+
+const prevLesson = prev
+  ? { title: prev.data.title, href: `/networking/security/${prev.id.replace('security/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}` }
+  : null;
+
+const nextLesson = next
+  ? { title: next.data.title, href: `/networking/security/${next.id.replace('security/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}` }
+  : null;
+---
+
+<BaseLayout 
+  title={entry.data.title}
+  description={entry.data.description}
+  keywords={entry.data.tags || ['networking', 'security']}
+  ogType="article"
+  certifications={entry.data.certifications}
+>
+  <div class="flex min-h-screen">
+
+    <LessonSidebar
+      lessons={sidebarLessons}
+      currentSlug={Astro.params.slug}
+      backHref="/networking/security"
+      backLabel="Security"
+      color="red"
+    />
+
+    <main class="flex-1 min-w-0 px-8 lg:px-16 py-12 max-w-3xl">
+
+      <Breadcrumb crumbs={[
+        { label: 'Networking', href: '/networking' },
+        { label: 'Security', href: '/networking/security' },
+        { label: entry.data.title },
+      ]} />
+
+      <div class="mb-10">
+        <h1 class="text-4xl font-black tracking-tight font-mono mb-3">
+          {entry.data.title}
+        </h1>
+        <p class="text-gray-400">{entry.data.description}</p>
+        <div class="flex items-center gap-4 mt-4">
+          {entry.data.duration && (
+            <span class="text-xs text-gray-600">{entry.data.duration} min read</span>
+          )}
+          {entry.data.tags && entry.data.tags.map(tag => (
+            <span class="text-xs px-2 py-0.5 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <article class="prose prose-invert prose-red max-w-none">
+        <Content />
+      </article>
+
+      <PrevNext prev={prevLesson} next={nextLesson} color="red" />
+
+    </main>
+  </div>
+</BaseLayout>

@@ -1,0 +1,36 @@
+---
+interface Props {
+  leftLabel?: string;
+  rightLabel?: string;
+  leftColor?: string;
+  rightColor?: string;
+}
+
+const {
+  leftLabel = 'Java',
+  rightLabel = 'Rust',
+  leftColor = 'orange',
+  rightColor = 'red',
+} = Astro.props;
+---
+
+<div class="not-prose my-8 rounded-xl border border-white/10 overflow-hidden">
+  <!-- Labels -->
+  <div class="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10">
+    <div class={`px-4 py-2 text-xs font-semibold font-mono text-${leftColor}-400 bg-${leftColor}-500/5`}>
+      {leftLabel}
+    </div>
+    <div class={`px-4 py-2 text-xs font-semibold font-mono text-${rightColor}-400 bg-${rightColor}-500/5`}>
+      {rightLabel}
+    </div>
+  </div>
+  <!-- Code slots -->
+  <div class="grid grid-cols-2 divide-x divide-white/10">
+    <div class="p-4 text-sm overflow-x-auto bg-white/[0.02] [&>pre]:m-0 [&>pre]:bg-transparent [&>pre]:p-0">
+      <slot name="left" />
+    </div>
+    <div class="p-4 text-sm overflow-x-auto bg-white/[0.02] [&>pre]:m-0 [&>pre]:bg-transparent [&>pre]:p-0">
+      <slot name="right" />
+    </div>
+  </div>
+</div>

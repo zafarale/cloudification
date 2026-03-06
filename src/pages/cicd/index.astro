@@ -1,0 +1,73 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TutorialHeader from '../../components/TutorialHeader.astro';
+import CrossPathNote from '../../components/CrossPathNote.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('cicd');
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout 
+  title="CI/CD"
+  description="Learn Git, CI/CD pipelines, and deployment automation. Master version control, GitHub Actions, and continuous deployment practices."
+  keywords={['Git tutorials', 'CI/CD pipelines', 'GitHub Actions', 'continuous integration', 'continuous deployment', 'version control', 'DevOps']}
+  certifications={['GitHub Actions Certification', 'GitLab Certified Associate', 'Jenkins Engineer', 'AWS DevOps Engineer Professional']}
+>
+
+  <TutorialHeader
+    title="CI/CD"
+    description="Version control, pipelines, and deployment automation. These skills underpin every path — programming and cloud alike."
+    lessonCount={sorted.length}
+    icon="qlementine-icons:pipe-24"
+  />
+
+  <section class="max-w-4xl mx-auto px-6 pb-24">
+    <div class="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/5">
+      {sorted.map((lesson, index) => {
+        const slug = lesson.id.replace(/\.md$/, '');
+        return (
+          <a
+            href={`/cicd/${slug}`}
+            class="flex items-center gap-6 px-6 py-5 hover:bg-white/5 transition-colors group"
+          >
+            <span class="text-2xl font-black text-green-500/30 group-hover:text-green-500/60 transition-colors w-8 shrink-0 tabular-nums">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <div class="flex-1 min-w-0">
+              <p class="font-semibold group-hover:text-green-100 transition-colors">
+                {lesson.data.title}
+              </p>
+              <p class="text-sm text-gray-500 mt-0.5 truncate">
+                {lesson.data.description}
+              </p>
+              {lesson.data.tags && lesson.data.tags.length > 0 && (
+                <div class="flex gap-2 mt-2">
+                  {lesson.data.tags.map(tag => (
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 border border-green-500/20">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div class="flex items-center gap-4 shrink-0">
+              {lesson.data.duration && (
+                <span class="text-xs text-gray-600">{lesson.data.duration}m</span>
+              )}
+              <span class="text-gray-600 group-hover:text-green-400 group-hover:translate-x-1 transition-all duration-200">
+                →
+              </span>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+
+  <CrossPathNote
+    title="CI/CD connects to every other path"
+    description="Git and pipelines deploy your code to the cloud. Every programming project needs version control. Database migrations run in CI/CD. Network configurations are deployed automatically. Look out for cross-path callouts as you progress."
+  />
+
+</BaseLayout>

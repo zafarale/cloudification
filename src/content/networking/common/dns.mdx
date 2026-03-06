@@ -1,0 +1,51 @@
+---
+title: "DNS - Domain Name System"
+description: "How domain names are resolved to IP addresses"
+order: 1
+duration: 8
+tags: ["dns", "fundamentals"]
+sharedWith: ["cloud", "security"]
+---
+
+DNS is the phonebook of the internet. It translates human-readable domain names (like `example.com`) into IP addresses that computers use to communicate.
+
+## How DNS Works
+
+When you type a URL in your browser:
+
+1. **Browser cache** — Check if we recently looked this up
+2. **OS cache** — Check the operating system's DNS cache
+3. **Resolver** — Ask your ISP's DNS resolver
+4. **Root servers** — Find the TLD nameserver (.com, .org, etc.)
+5. **TLD nameserver** — Find the authoritative nameserver
+6. **Authoritative nameserver** — Get the actual IP address
+
+## Record Types
+
+| Type | Purpose |
+|------|---------|
+| A | Maps domain to IPv4 address |
+| AAAA | Maps domain to IPv6 address |
+| CNAME | Alias to another domain |
+| MX | Mail server for the domain |
+| TXT | Arbitrary text (often for verification) |
+| NS | Nameserver for the domain |
+
+## DNS in Practice
+
+```bash
+# Look up A record
+dig example.com A
+
+# Look up all records
+dig example.com ANY
+
+# Trace the full resolution path
+dig +trace example.com
+```
+
+## Security Considerations
+
+- **DNS spoofing** — Attackers returning false IP addresses
+- **DNSSEC** — Cryptographic signatures to verify DNS responses
+- **DNS over HTTPS (DoH)** — Encrypts DNS queries

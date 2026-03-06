@@ -1,0 +1,283 @@
+---
+title: "Introduction to AWS"
+description: "AWS global infrastructure, service categories, account hierarchy, IAM bootstrap, and CLI setup"
+order: 1
+duration: 18
+tags: ["intro", "aws", "cloud", "global-infrastructure", "iam"]
+icon: "logos:aws"
+certifications: ["AWS Cloud Practitioner", "AWS Solutions Architect Associate"]
+sharedConcepts: ["iam-concepts", "networking-basics"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+import List from '../../../components/mdx/List.astro';
+
+Amazon Web Services (AWS) is the world's largest cloud platform, launched publicly in 2006. It offers over 200 fully managed services spanning compute, storage, databases, networking, ML, and security. Before diving into specific services, you need to understand how AWS is structured — both physically (global infrastructure) and logically (accounts, IAM, and CLI).
+
+<Callout type="info">
+**Foundation concepts first.** This lesson covers AWS-specific structure. For universal cloud networking concepts (VPC, subnets, routing), see **Cloud Networking Basics**. For identity and access management concepts, see **IAM Foundations** — both are linked above as shared concepts.
+</Callout>
+
+<KeyPoints>
+- How AWS regions, Availability Zones, and edge locations relate to each other
+- The AWS account + Organisation model for isolation and billing
+- Core service categories and which services belong to each
+- How to configure the AWS CLI and why credential management matters from day one
+- The IAM bootstrap sequence every new AWS account should follow
+</KeyPoints>
+
+---
+
+## AWS Global Infrastructure
+
+AWS infrastructure is organised in three layers: **Regions** → **Availability Zones** → **Edge Locations**. Understanding this hierarchy determines where your data lives, what your latency will be, and how resilient your architecture is.
+
+```mermaid
+flowchart TD
+    GLOBE["AWS Global Network"]
+
+    subgraph REG["Region (e.g. us-east-1)"]
+        AZ1["Availability Zone A\n(1–3 data centres)"]
+        AZ2["Availability Zone B"]
+        AZ3["Availability Zone C"]
+    end
+
+    subgraph EDGE["Edge / Content Delivery"]
+        CF["CloudFront PoP\n(400+ locations)"]
+        SHIELD["AWS Shield\nDDoS scrubbing"]
+    end
+
+    GLOBE --> REG
+    GLOBE --> EDGE
+    REG --> AZ1 & AZ2 & AZ3
+```
+
+| Layer | Count | Purpose |
+|---|---|---|
+| **Regions** | 34+ | Geographic isolation, data sovereignty, latency |
+| **Availability Zones** | 3–6 per region | Fault isolation within a region |
+| **Local Zones** | 30+ | Ultra-low latency compute near metro areas |
+| **CloudFront PoPs** | 400+ | Static + dynamic content caching, DDoS scrubbing |
+| **Wavelength Zones** | Carrier-specific | 5G edge compute (single-digit ms latency) |
+
+### Choosing a Region
+
+```mermaid
+flowchart TD
+    START["Choosing a region"]
+    DATA{"Data sovereignty\nrequirement?"}
+    LATENCY{"Where are\nyour users?"}
+    SERVICES{"Does the region\nhave required services?"}
+    COST{"Cost difference\nacceptable?"}
+    REGION["Select region ✅"]
+
+    START --> DATA
+    DATA -- "Yes → must be in\nspecific country" --> SERVICES
+    DATA -- "No" --> LATENCY
+    LATENCY --> SERVICES
+    SERVICES -- "Yes" --> COST
+    SERVICES -- "No" --> LATENCY
+    COST --> REGION
+```
+
+<Callout type="tip">
+**Not all services exist in all regions.** Some newer services launch in `us-east-1` first and roll out over months. If a service isn't visible in your console, you may be in the wrong region.
+</Callout>
+
+---
+
+## The AWS Account and Organisation Model
+
+An **AWS account** is the fundamental unit of isolation — billing, IAM, and resource quotas are all account-scoped. For real workloads you run multiple accounts under **AWS Organizations**.
+
+```mermaid
+flowchart TD
+    ROOT["Management Account\n(billing, policy root)"]
+
+    subgraph OU_PROD["OU: Production"]
+        ACC_PROD_APP["Account: prod-app"]
+        ACC_PROD_DATA["Account: prod-data"]
+    end
+
+    subgraph OU_DEV["OU: Development"]
+        ACC_DEV["Account: dev"]
+        ACC_STAGING["Account: staging"]
+    end
+
+    subgraph OU_SHARED["OU: Shared Services"]
+        ACC_LOGGING["Account: logging"]
+        ACC_SECURITY["Account: security-tooling"]
+    end
+
+    ROOT --> OU_PROD & OU_DEV & OU_SHARED
+    OU_PROD --> ACC_PROD_APP & ACC_PROD_DATA
+    OU_DEV --> ACC_DEV & ACC_STAGING
+    OU_SHARED --> ACC_LOGGING & ACC_SECURITY
+```
+
+**Why multiple accounts?**
+
+- **Blast radius** — a compromised dev account cannot touch production resources in a separate account
+- **Billing visibility** — cost by workload without tagging gymnastics
+- **Service Control Policies (SCPs)** — attach at the OU level to prevent certain actions (e.g. deny `ec2:RunInstances` in `eu-*` regions in the dev OU)
+- **Quota separation** — EC2 instance limits are per account; separate accounts avoid production being limited by dev test runs
+
+---
+
+## Core Service Categories
+
+AWS groups its 200+ services into functional categories. These are the categories you'll encounter on every certification exam and in practice:
+
+```mermaid
+flowchart TD
+    AWS["AWS Core Services"]
+
+    COMPUTE["🖥 Compute\nEC2 · Lambda · ECS · EKS · Fargate"]
+    STORAGE["💾 Storage\nS3 · EBS · EFS · Glacier"]
+    DB["🗄 Databases\nRDS · DynamoDB · ElastiCache · Aurora"]
+    NET["🌐 Networking\nVPC · Route 53 · CloudFront · ALB/NLB"]
+    IAM_BOX["🔐 Security & IAM\nIAM · STS · KMS · Secrets Manager"]
+    OBS["📊 Observability\nCloudWatch · CloudTrail · X-Ray"]
+    INFRA["⚙ Infrastructure\nCloudFormation · CDK · Systems Manager"]
+
+    AWS --> COMPUTE & STORAGE & DB & NET & IAM_BOX & OBS & INFRA
+```
+
+| Category | You use it to… |
+|---|---|
+| **Compute** | Run code — VMs, containers, or serverless functions |
+| **Storage** | Persist data — object, block, or file storage |
+| **Databases** | Store structured/semi-structured data with managed engines |
+| **Networking** | Control how traffic flows between resources and the internet |
+| **Security / IAM** | Control who can do what, and protect data at rest and in transit |
+| **Observability** | Understand what your system is doing and what happened |
+| **Infrastructure** | Automate provisioning, configuration, and deployment |
+
+---
+
+## IAM Bootstrap: Your First Actions on a New Account
+
+<Callout type="warning">
+**Never use root credentials for daily work.** The root account email/password has unrestricted access to your entire AWS account including billing. Protect it with a strong password + MFA, lock the credentials away, and create an IAM user or role for everything else.
+</Callout>
+
+The correct bootstrap sequence for every new AWS account:
+
+```mermaid
+flowchart TD
+    ROOT["1. Log in as root"]
+    MFA["2. Enable MFA on root account"]
+    BILLING["3. Set billing alerts\n(Cost Explorer + Budgets)"]
+    ADMIN["4. Create admin IAM user\nor federated SSO access"]
+    SWITCH["5. Log out of root\nWork from IAM user/role only"]
+    GROUPS["6. Create IAM groups/roles\nper function (ReadOnly, Developer, Admin)"]
+    USERS["7. Create user accounts\nwith least-privilege roles"]
+    MFA2["8. Enforce MFA for all\nhuman users"]
+
+    ROOT --> MFA --> BILLING --> ADMIN --> SWITCH --> GROUPS --> USERS --> MFA2
+```
+
+For the policy syntax behind this, see the [IAM Foundations](/cloud/common/iam-concepts) lesson.
+
+---
+
+## The AWS CLI
+
+The AWS CLI lets you interact with every AWS service from the command line. It's essential for automation, scripting, and faster iteration than clicking through the console.
+
+**Installation:**
+
+```bash
+# macOS (Homebrew)
+brew install awscli
+
+# Linux
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip && sudo ./aws/install
+
+# Windows (winget)
+winget install -e --id Amazon.AWSCLI
+
+# Verify
+aws --version
+```
+
+**Configuration — the right way:**
+
+```bash
+# Interactive setup (stores in ~/.aws/credentials and ~/.aws/config)
+aws configure
+
+# AWS SSO (recommended for organisations using AWS IAM Identity Center)
+aws configure sso
+
+# Useful: named profiles for multiple accounts
+aws configure --profile prod
+aws configure --profile dev
+
+# Switch profiles
+export AWS_PROFILE=prod
+aws s3 ls  # uses prod profile
+```
+
+<Callout type="warning">
+**Never hard-code credentials.** Don't put `AWS_ACCESS_KEY_ID` in source code, `.env` files committed to git, or container images. Use IAM roles for EC2/ECS/Lambda (the service gets temporary credentials automatically), and AWS IAM Identity Center for human access.
+</Callout>
+
+**Common first commands:**
+
+```bash
+# List your S3 buckets
+aws s3 ls
+
+# Describe EC2 instances in a region
+aws ec2 describe-instances --region us-east-1
+
+# Get current caller identity (useful for debugging auth)
+aws sts get-caller-identity
+
+# List IAM users
+aws iam list-users
+```
+
+---
+
+## Key AWS Console Concepts
+
+| Concept | What to know |
+|---|---|
+| **Region selector** | Top-right of console — many services show different resources per region. Always check you're in the right region. |
+| **Global vs regional services** | IAM, Route 53, CloudFront, Billing are global — no region selector. Everything else is regional. |
+| **CloudShell** | Browser-based terminal with AWS CLI pre-configured — useful for quick tasks without local setup |
+| **Cost Explorer** | Enable it on day 1. Default billing dashboard shows month-to-date; Cost Explorer shows trends and forecasts. |
+| **Service Quotas** | Every service has per-region per-account limits. Check these before production launches. Request increases early. |
+
+---
+
+## Knowledge Check
+
+<Quiz
+  question="You deploy an EC2 instance in us-east-1a. The AZ suffers an outage. Your Auto Scaling Group was configured for one AZ only. What is the impact?"
+  options={[
+    "AWS automatically moves the instance to us-east-1b",
+    "The instance is terminated and a replacement launches in us-east-1b only if you specified multi-AZ subnets in the ASG",
+    "The instance stays running because EC2 instances survive AZ failures",
+    "AWS pauses billing until the AZ recovers"
+  ]}
+  answer="The instance is terminated and a replacement launches in us-east-1b only if you specified multi-AZ subnets in the ASG"
+  explanation="AWS does not automatically move instances between AZs. Auto Scaling Groups launch replacements in healthy AZs — but only in the subnets you specified. If you configured the ASG with only a single AZ subnet, it will try to re-launch in the same failed AZ and keep failing. Always configure ASGs with subnets in at least two AZs."
+/>
+
+---
+
+<KeyPoints title="AWS Intro Checklist">
+- Root account: MFA enabled, credentials locked away, billing alerts set
+- Admin access via IAM user or SSO role — never root for daily work
+- AWS CLI configured with named profiles, never hard-coded credentials
+- Understand region selection: data residency → latency → service availability → cost
+- Familiar with account structure: Org root → OUs → accounts (prod / dev / shared)
+- Know the seven core service categories and representative services in each
+</KeyPoints>

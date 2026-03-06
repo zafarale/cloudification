@@ -1,0 +1,261 @@
+---
+title: "Azure Virtual Machines"
+description: "Azure VM sizes, SKU naming, pricing models, availability, storage, networking placement, and lifecycle"
+order: 2
+duration: 22
+tags: ["azure-vm", "compute", "virtual-machines", "pricing", "managed-disks"]
+icon: "mdi:server"
+certifications: ["Azure Administrator AZ-104", "Azure Fundamentals AZ-900"]
+sharedConcepts: ["networking-basics"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+Azure Virtual Machines are Azure's Infrastructure-as-a-Service compute offering. You get full OS control, your choice of image, CPU/memory configuration, storage type, and network placement — identical in concept to AWS EC2 but with Azure-specific naming, pricing, and availability constructs.
+
+<KeyPoints>
+- How the Azure VM size naming convention decodes SKU capabilities
+- VM series and which workload categories each serves
+- Pricing models: Pay-As-You-Go, Reserved, Spot, and Azure Hybrid Benefit
+- Availability options: Availability Sets, Availability Zones, and Virtual Machine Scale Sets
+- Storage types: managed disk tiers and their performance characteristics
+- Network placement: VNet, subnet selection, NSG, and managed identity attachment
+</KeyPoints>
+
+---
+
+## VM Size Naming Convention
+
+Azure VM size names follow a structured format — once you know it, you can decode any SKU without documentation.
+
+```
+D   a  s  _  v5  _  Standard
+│   │  │       │
+│   │  └───────┴── Capabilities: s=premium storage, d=temp NVMe disk, l=low memory
+│   └────────────── CPU type: a=AMD, nothing=Intel, p=ARM (Ampere)  
+└────────────────── Series: D=general, E=memory, F=compute, N=GPU, B=burstable
+                    Version: v5 = 5th generation
+```
+
+**VM series:**
+
+| Series | Optimised for | Typical use |
+|---|---|---|
+| **D** (general) | Balanced CPU/memory | Web/app servers, dev environments |
+| **E** (memory) | High memory-to-vCPU ratio | In-memory DBs, SAP HANA, large caches |
+| **F** (compute) | High CPU-to-memory | Batch processing, analytics, gaming servers |
+| **B** (burstable) | Low baseline + burst | Dev/test, low-traffic apps |
+| **N** (GPU) | NVIDIA or AMD GPU | ML training, rendering, VDI |
+| **L** (storage) | High local NVMe throughput | Big data, Elasticsearch, Cassandra |
+
+---
+
+## Choosing the Right VM Size
+
+```mermaid
+flowchart TD
+    START["What does the workload need?"]
+
+    GENERAL{"Web/API server\nor general app?"}
+    MEMBOUND{"Memory-intensive:\nSAP, large cache,\nin-memory DB?"}
+    CPUBOUND{"CPU-intensive:\nbatch, analytics,\nrendering?"}
+    GPU_NEED{"ML training\nor GPU workload?"}
+    DEV{"Dev/test or\nvariable traffic?"}
+
+    D_SERIES["D-series\nDsv5, Ddsv5\n(s = premium storage)"]
+    E_SERIES["E-series\nEsv5, Edsv5"]
+    F_SERIES["F-series\nFsv2, Fxmds"]
+    N_SERIES["N-series\nNC, ND, NV, NVads"]
+    B_SERIES["B-series\nBs, Bsv2 (burstable)"]
+
+    START --> GENERAL & MEMBOUND & CPUBOUND & GPU_NEED & DEV
+    GENERAL --> D_SERIES
+    MEMBOUND --> E_SERIES
+    CPUBOUND --> F_SERIES
+    GPU_NEED --> N_SERIES
+    DEV --> B_SERIES
+```
+
+<Callout type="tip">
+**Prefer `s` (premium storage) suffix for production.** `Standard_D4s_v5` supports Premium SSD managed disks with guaranteed IOPS. The non-`s` variant doesn't. For databases and stateful workloads, always use the `s` variant.
+</Callout>
+
+---
+
+## Pricing Models
+
+```mermaid
+flowchart TD
+    WORKLOAD["Workload pattern?"]
+
+    STEADY{"Runs 24/7\nor very predictable?"}
+    INTERRUPTIBLE{"Can tolerate\neviction with 30s notice?"}
+    WINDOWS{"Running\nWindows Server\nor SQL Server?"}
+    COMMIT{"Can commit\n1 or 3 years?"}
+
+    PAYG["Pay-As-You-Go\nPer-minute billing\nNo commitment\nFull price"]
+    SPOT["Spot VM\nUp to 90% discount\nEvicted when Azure needs capacity\nNo SLA"]
+    RESERVED["Reserved VM\n1-year: ~40% off\n3-year: ~60% off\nCommit to region + size family"]
+    HYBRID["Azure Hybrid Benefit\nBring existing Windows/SQL\nServer licenses\nUp to 49% additional savings"]
+
+    WORKLOAD --> STEADY & INTERRUPTIBLE & WINDOWS
+    STEADY --> COMMIT
+    COMMIT -- "Yes" --> RESERVED
+    COMMIT -- "No" --> PAYG
+    INTERRUPTIBLE -- "Yes" --> SPOT
+    INTERRUPTIBLE -- "No" --> PAYG
+    WINDOWS --> HYBRID
+```
+
+| Model | Discount | Best for |
+|---|---|---|
+| **Pay-As-You-Go** | — | Unpredictable workloads, proof-of-concept |
+| **Reserved VM** | 40–60% | Steady 24/7 production workloads |
+| **Spot VM** | Up to 90% | Batch processing, fault-tolerant pipelines, dev builds |
+| **Azure Hybrid Benefit** | Up to 49% extra | Orgs with Software Assurance Windows/SQL Server licenses |
+
+---
+
+## Availability Options
+
+Azure offers three different mechanisms for VM high availability. Choosing the wrong one is a common architecture mistake.
+
+```mermaid
+flowchart TD
+    HA["High Availability requirement?"]
+
+    SINGLE{"Single VM\nsufficient?"}
+    AZ_SUPP{"Region supports\nAvailability Zones?"}
+    SCALE{"Need auto-scaling\nor rolling upgrades?"}
+
+    NONE["Single VM\n99.9% SLA with Premium SSD\nNo HA — use only for dev/test"]
+    AS["Availability Set\n2+ VMs across fault/update domains\n99.95% SLA\nProtects against rack + maintenance"]
+    AZ["Availability Zones\n2+ VMs across separate AZs\n99.99% SLA\nProtects against data centre failure"]
+    VMSS["Virtual Machine Scale Sets\nAuto-scales, integrates with AZs\n99.99% SLA\nRolling upgrade + health probes"]
+
+    HA --> SINGLE
+    SINGLE -- "Yes (dev only)" --> NONE
+    SINGLE -- "No, need HA" --> AZ_SUPP
+    AZ_SUPP -- "Yes" --> SCALE
+    AZ_SUPP -- "No" --> AS
+    SCALE -- "Yes" --> VMSS
+    SCALE -- "No" --> AZ
+```
+
+<Callout type="warning">
+**Availability Sets do not protect against AZ failure.** They protect against rack failure and platform maintenance windows within a single data centre. Use Availability Zones for true DC-level fault tolerance. Availability Sets are a legacy option — prefer AZs for any new deployment in a region that supports them.
+</Callout>
+
+---
+
+## Managed Disks
+
+Azure Managed Disks are the equivalent of AWS EBS. Azure manages the storage account underneath — you just choose the performance tier.
+
+```mermaid
+flowchart TD
+    DISK["Managed Disk Types"]
+
+    ULTRA["Ultra Disk\nUp to 160K IOPS\nConfigurable IOPS+throughput\nLatency <1ms\nHighest cost\nNo snapshot, no temp disk"]
+    PREMIUM["Premium SSD v2\nUp to 80K IOPS\nSub-ms latency\nFlexible perf config\nMost capable for prod"]
+    PREMIUM_V1["Premium SSD\nUp to 20K IOPS\nBest compatibility\nHighest per-GB pricing"]
+    STANDARD_SSD["Standard SSD\nUp to 6K IOPS\nLow-importance workloads\nDev/test, light apps"]
+    STANDARD_HDD["Standard HDD\nHighest latency\nArchival, backups\nLowest cost"]
+
+    DISK --> ULTRA --> PREMIUM --> PREMIUM_V1 --> STANDARD_SSD --> STANDARD_HDD
+```
+
+**Disk placement rules:**
+- OS disk: Premium SSD minimum for production
+- Data disks: Attached per VM — SKU determines max disk count and IOPS cap
+- Temp disk (D: / /dev/sdb): Local ephemeral storage — lost on stop/deallocate; never store persistent data here
+
+---
+
+## VM Lifecycle and Billing
+
+```mermaid
+flowchart TD
+    CREATING["Creating\nNot billed"]
+    RUNNING["Running\n✅ Compute + storage billed"]
+    STOPPING["Stopping\nOS shutdown in progress"]
+    STOPPED["Stopped (OS-level)\n⚠️ Still billed for compute\nDisk still billed"]
+    DEALLOCATED["Deallocated\n✅ Compute NOT billed\nDisk still billed"]
+    RESTARTING["Restarting\nBrief reboot, same host"]
+    DELETING["Deleting\nFinal state"]
+
+    CREATING --> RUNNING
+    RUNNING --> STOPPING --> STOPPED
+    RUNNING --> RESTARTING --> RUNNING
+    STOPPED --> RUNNING
+    STOPPED --> DEALLOCATED
+    DEALLOCATED --> RUNNING
+    RUNNING --> DEALLOCATED
+    DEALLOCATED --> DELETING
+```
+
+<Callout type="warning">
+**Stopped ≠ Deallocated in Azure.** If you stop a VM from inside the OS (e.g. `shutdown -h now`), Azure puts it in **Stopped** state — you are still charged for compute. Use `az vm deallocate` or the Azure portal **Stop** button to fully deallocate and stop compute charges. Managed disk charges always apply.
+</Callout>
+
+---
+
+## Network Placement and Security
+
+<Callout type="info">
+**VNet, subnet, and NSG fundamentals** are covered in the [Cloud Networking Basics](/cloud/common/networking-basics) shared lesson. This section covers the Azure VM-specific decisions.
+</Callout>
+
+```mermaid
+flowchart TD
+    LAUNCH["Deploy Azure VM"]
+    VNET["Select VNet\n(which environment?)"]
+    SUBNET["Select Subnet\n(public/private/data tier?\nwhich AZ?)"]
+    NSG["Assign NSG\n(or use existing subnet NSG)"]
+    MI["Assign Managed Identity\n(system-assigned or user-assigned)"]
+    PIP["Public IP?\n(No = private only,\nreachable via load balancer / Bastion)"]
+    SSH["Access method:\nAzure Bastion or\nRAM-based ephemeral key"]
+
+    LAUNCH --> VNET --> SUBNET --> NSG --> MI --> PIP --> SSH
+```
+
+**VM network checklist:**
+
+| Decision | Production default |
+|---|---|
+| Subnet | Private — app tier |
+| Public IP | None — load balancer or Application Gateway does the public termination |
+| NSG | Deny all inbound by default; allow only from load balancer |
+| Identity | System-assigned Managed Identity — no credentials to manage |
+| SSH/RDP access | Azure Bastion — no public port 22/3389, full audit trail |
+
+---
+
+## Knowledge Check
+
+<Quiz
+  question="You shut down an Azure VM from inside Windows (Start → Shut Down). What happens to billing?"
+  options={[
+    "Compute and disk billing both stop immediately",
+    "Compute billing stops; disk billing continues",
+    "Compute billing continues; disk billing stops",
+    "Both compute and disk billing continue until you deallocate from the portal or CLI"
+  ]}
+  answer="Both compute and disk billing continue until you deallocate from the portal or CLI"
+  explanation="An OS-level shutdown puts the VM in Stopped state, not Deallocated. In Stopped state, Azure has still reserved the underlying physical hardware for that VM — so compute charges continue. To release the hardware and stop compute billing, you must Deallocate the VM using the Azure portal Stop button, the Azure CLI (az vm deallocate), or Azure PowerShell. Managed disk charges always apply regardless of VM state."
+/>
+
+---
+
+<KeyPoints title="Azure VM Checklist">
+- Decode VM size names: Series + CPU type + capabilities + generation (`Standard_D4s_v5`)
+- Use `s` suffix (premium storage capability) for all production workloads
+- Pricing: Pay-As-You-Go → Reserved for steady state, Spot for interruptible batch, Hybrid Benefit for licensed Windows/SQL
+- Availability Zones for new deployments (99.99% SLA); Availability Sets only for legacy/regions without AZ support
+- Stop vs Deallocate: OS shutdown = Stopped = still billed; portal Stop = Deallocated = compute billing stops
+- Managed disks: Premium SSD v2 for prod databases, Standard SSD for non-critical, never use temp disk for persistent data
+- Network: private subnet, no public IP on VM, Managed Identity for service credentials, Azure Bastion for access
+</KeyPoints>

@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TutorialHeader from '../../components/TutorialHeader.astro';
+import SharedLessons from '../../components/SharedLessons.astro';
+import CrossPathNote from '../../components/CrossPathNote.astro';
+import FeatureCard from '../../components/FeatureCard.astro';
+import { getCollection } from 'astro:content';
+
+const all = await getCollection('networking');
+
+const fundamentalsLessons = all.filter(({ id }) => id.startsWith('fundamentals/'));
+const protocolsLessons    = all.filter(({ id }) => id.startsWith('protocols/'));
+const securityLessons     = all.filter(({ id }) => id.startsWith('security/'));
+const commonLessons       = all.filter(({ id }) => id.startsWith('common/'));
+---
+
+<BaseLayout 
+  title="Networking"
+  description="Master computer networking from packets to protocols. Learn TCP/IP, HTTP, DNS, TLS, and network security fundamentals for developers."
+  keywords={['networking fundamentals', 'TCP/IP', 'HTTP protocol', 'DNS', 'TLS SSL', 'network security', 'OSI model', 'VPN']}
+  certifications={['CompTIA Network+', 'Cisco CCNA', 'CompTIA Security+']}
+>
+
+  <TutorialHeader
+    title="Networking"
+    description="How computers communicate. From packets and protocols to secure connections and distributed systems — understand the network stack."
+    icon="qlementine-icons:network-16"
+    lessonCount={fundamentalsLessons.length + protocolsLessons.length + securityLessons.length}
+    sharedCount={commonLessons.length}
+  />
+
+  <!-- Track cards -->
+  <section class="max-w-5xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+    <FeatureCard
+      title="Fundamentals"
+      description="OSI model, TCP/IP stack, IP addressing, subnets, routing, and how data travels across networks."
+      href="/networking/fundamentals"
+      icon="qlementine-icons:puzzle-piece-16"
+      color="blue"
+      tags={[{ label: "TCP/IP" }, { label: "OSI" }]}
+      lessonCount={fundamentalsLessons.length}
+    />
+
+    <FeatureCard
+      title="Protocols"
+      description="HTTP, DNS, WebSockets, gRPC, and the application-layer protocols that power modern services."
+      href="/networking/protocols"
+      icon="qlementine-icons:puzzle-piece-16"
+      color="green"
+      tags={[{ label: "HTTP" }, { label: "DNS" }]}
+      lessonCount={protocolsLessons.length}
+    />
+
+    <FeatureCard
+      title="Security"
+      description="TLS/SSL, firewalls, VPNs, authentication protocols, and defending against network attacks."
+      href="/networking/security"
+      icon="qlementine-icons:lock-16"
+      color="red"
+      tags={[{ label: "TLS" }, { label: "VPN" }]}
+      lessonCount={securityLessons.length}
+    />
+  </section>
+
+  <SharedLessons
+    lessons={commonLessons}
+    basePath="/networking/common"
+    color="blue"
+  />
+
+  <CrossPathNote
+    title="Networking connects to every other path"
+    description="AWS VPCs, load balancers, and Route 53 are covered in the Cloud track. Database replication relies on network fundamentals. CI/CD pipelines deploy across networks. Look out for cross-path callouts as you progress."
+  />
+
+</BaseLayout>

@@ -1,0 +1,82 @@
+---
+interface Option {
+  label: string;
+  correct?: boolean;
+}
+
+interface Props {
+  question: string;
+  options: Option[];
+  explanation?: string;
+}
+
+const { question, options, explanation } = Astro.props;
+const quizId = Math.random().toString(36).slice(2, 8);
+---
+
+<div class="not-prose my-8 rounded-xl border border-white/10 bg-white/5 p-6" data-quiz={quizId}>
+  <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 font-mono mb-4">
+    ✦ Quick Check
+  </p>
+  <p class="text-sm font-semibold text-gray-200 mb-4">{question}</p>
+
+  <div class="space-y-2" id={`options-${quizId}`}>
+    {options.map((option, index) => (
+      <button
+        class="w-full text-left px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-sm text-gray-400 hover:border-white/20 hover:text-gray-200 hover:bg-white/10 transition-all duration-200 font-sans"
+        data-correct={option.correct ? 'true' : 'false'}
+        data-quiz-option={quizId}
+        data-index={index}
+      >
+        <span class="font-mono text-xs text-gray-600 mr-3">
+          {String.fromCharCode(65 + index)}
+        </span>
+        {option.label}
+      </button>
+    ))}
+  </div>
+
+  {explanation && (
+    <div
+      id={`explanation-${quizId}`}
+      class="mt-4 p-4 rounded-lg border border-white/10 bg-white/5 text-sm text-gray-400 hidden"
+    >
+      <span class="font-mono text-xs text-gray-500 uppercase tracking-widest block mb-1">
+        Explanation
+      </span>
+      {explanation}
+    </div>
+  )}
+</div>
+
+<script define:vars={{ quizId }}>
+  document.querySelectorAll(`[data-quiz-option="${quizId}"]`).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const isCorrect = btn.dataset.correct === 'true';
+
+      // Disable all buttons
+      document.querySelectorAll(`[data-quiz-option="${quizId}"]`).forEach(b => {
+        b.disabled = true;
+        b.classList.remove('hover:border-white/20', 'hover:bg-white/10');
+      });
+
+      // Style selected button
+      if (isCorrect) {
+        btn.classList.add('border-green-500/50', 'bg-green-500/10', 'text-green-400');
+      } else {
+        btn.classList.add('border-red-500/50', 'bg-red-500/10', 'text-red-400');
+
+        // Highlight correct answer
+        document.querySelectorAll(`[data-quiz-option="${quizId}"]`).forEach(b => {
+          if (b.dataset.correct === 'true') {
+            b.classList.add('border-green-500/30', 'bg-green-500/5', 'text-green-400');
+          }
+        });
+      }
+
+      // Show explanation
+      const explanation = document.getElementById(`explanation-${quizId}`);
+      if (explanation) explanation.classList.remove('hidden');
+    });
+  });
+</script>

@@ -1,0 +1,153 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  /* Fonts */
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Path colors */
+  --color-java: #f97316;
+  --color-rust: #ef4444;
+  --color-aws: #f59e0b;
+  --color-azure: #3b82f6;
+  --color-cicd: #22c55e;
+  --color-common: #a855f7;
+}
+
+/* Base */
+body {
+  font-family: var(--font-sans);
+  background-color: #0a0a0f;
+  color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+}
+
+html.theme-day body {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+html.theme-day nav {
+  background: rgba(248, 250, 252, 0.9) !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-day nav a {
+  color: #475569;
+}
+
+html.theme-day nav a:hover {
+  color: #0f172a;
+}
+
+html.theme-day .text-slate-400,
+html.theme-day .text-gray-400 {
+  color: #334155 !important;
+}
+
+html.theme-day .text-slate-500 {
+  color: #475569 !important;
+}
+
+html.theme-day .bg-white\/5 {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+}
+
+html.theme-day .border-white\/10 {
+  border-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+html.theme-day .hover\:bg-white\/10:hover {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html.theme-day .hover\:border-white\/20:hover {
+  border-color: rgba(15, 23, 42, 0.2) !important;
+}
+
+html.theme-day .prose.prose-invert,
+html.theme-day .prose.prose-invert :where(h1, h2, h3, h4, h5, h6, p, li, strong, em, blockquote, th, td, dt, dd) {
+  color: #0f172a !important;
+}
+
+html.theme-day .prose.prose-invert :where(a) {
+  color: #1d4ed8 !important;
+}
+
+/* Headings use mono */
+h1, h2, h3, h4 {
+  font-family: var(--font-mono);
+  letter-spacing: -0.03em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Prose — lesson content */
+.prose {
+  --tw-prose-body: #cbd5e1;
+  --tw-prose-headings: #f1f5f9;
+  --tw-prose-lead: #94a3b8;
+  --tw-prose-links: #818cf8;
+  --tw-prose-bold: #f1f5f9;
+  --tw-prose-counters: #64748b;
+  --tw-prose-bullets: #475569;
+  --tw-prose-hr: #1e293b;
+  --tw-prose-quotes: #94a3b8;
+  --tw-prose-quote-borders: #334155;
+  --tw-prose-captions: #64748b;
+  --tw-prose-code: #e2e8f0;
+  --tw-prose-pre-code: #e2e8f0;
+  --tw-prose-pre-bg: #0f172a;
+  --tw-prose-th-borders: #334155;
+  --tw-prose-td-borders: #1e293b;
+}
+
+/* Inline code */
+.theme-night :not(.expressive-code) > code {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-family: var(--font-mono);
+}
+
+.theme-day :not(.expressive-code) > code {
+  background: #e2e8f0;
+  color: #0f172a;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+  font-family: var(--font-mono);
+}
+
+/* Theme-aware icon variants */
+.theme-icon-day,
+.theme-icon-night {
+  display: none;
+}
+
+html.theme-day .theme-icon-day {
+  display: inline-block;
+}
+
+html.theme-night .theme-icon-night {
+  display: inline-block;
+}
+
+/* Expressive Code reset */
+.prose .expressive-code code { font-family: var(--font-mono); font-size: 0.875em; }
+
+/* Mermaid — transparent background */
+.mermaid,
+.mermaid svg {
+  background: transparent !important;
+}
+.mermaid svg rect.background {
+  fill: transparent !important;
+}

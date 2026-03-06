@@ -1,0 +1,116 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Item {
+  text: string;
+  icon?: string;
+  description?: string;
+  color?: string;
+  children?: Item[];   // ← nested items
+}
+
+interface Props {
+  items: Item[];
+  variant?: 'default' | 'cards' | 'compact';
+  depth?: number;      // ← internal, tracks nesting level
+}
+
+const { items, variant = 'default', depth = 0 } = Astro.props;
+---
+
+{variant === 'cards' && depth === 0 && (
+  <div class="not-prose my-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {items.map(item => (
+      <div class="flex items-start gap-3 p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/[0.08] transition-colors">
+        {item.icon ? (
+          <Icon name={item.icon} class={`w-6 h-6 shrink-0 mt-0.5 ${item.color ? `text-${item.color}-400` : 'text-gray-400'}`} />
+        ) : (
+          <span class={`shrink-0 mt-1.5 w-1.5 h-1.5 rounded-full ${item.color ? `bg-${item.color}-400` : 'bg-gray-600'}`} />
+        )}
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-gray-200">{item.text}</p>
+          {item.description && (
+            <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.description}</p>
+          )}
+          {item.children && item.children.length > 0 && (
+            <ul class="mt-2 space-y-1.5">
+              {item.children.map(child => (
+                <li class="flex items-start gap-2">
+                  {child.icon ? (
+                    <Icon name={child.icon} class={`w-3.5 h-3.5 shrink-0 mt-0.5 ${child.color ? `text-${child.color}-400` : 'text-gray-500'}`} />
+                  ) : (
+                    <span class="shrink-0 mt-2 w-1 h-1 rounded-full bg-gray-600" />
+                  )}
+                  <div>
+                    <p class="text-xs text-gray-400">{child.text}</p>
+                    {child.description && (
+                      <p class="text-xs text-gray-600 mt-0.5">{child.description}</p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+
+{variant !== 'cards' && (
+  <ul class:list={[
+    'not-prose space-y-2',
+    depth === 0 ? 'my-6' : 'mt-2 ml-4',
+    variant === 'compact' ? 'space-y-1.5' : 'space-y-3',
+  ]}>
+    {items.map(item => (
+      <li>
+        <div class="flex items-start gap-3">
+          {item.icon ? (
+            <Icon
+              name={item.icon}
+              class:list={[
+                'shrink-0 mt-0.5',
+                variant === 'compact' ? 'w-4 h-4' : 'w-5 h-5',
+                item.color ? `text-${item.color}-400` : 'text-gray-400',
+              ]}
+            />
+          ) : (
+            <span
+              class:list={[
+                'shrink-0 rounded-full',
+                variant === 'compact' ? 'mt-2 w-1 h-1' : 'mt-2 w-1.5 h-1.5',
+                depth === 0
+                  ? item.color ? `bg-${item.color}-400` : 'bg-gray-500'
+                  : item.color ? `bg-${item.color}-400` : 'bg-gray-600',
+              ]}
+            />
+          )}
+          <div class="min-w-0 flex-1">
+            <p class:list={[
+              'leading-relaxed',
+              variant === 'compact' ? 'text-xs text-gray-400' : 'text-sm text-gray-300',
+              depth > 0 && 'text-gray-400',
+            ]}>
+              {item.text}
+            </p>
+            {item.description && (
+              <p class="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                {item.description}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <!-- Recurse into children -->
+        {item.children && item.children.length > 0 && (
+          <Astro.self
+            items={item.children}
+            variant={variant}
+            depth={depth + 1}
+          />
+        )}
+      </li>
+    ))}
+  </ul>
+)}

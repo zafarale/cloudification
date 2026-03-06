@@ -1,0 +1,218 @@
+---
+title: "Git Basics"
+description: "Version control fundamentals — repositories, commits, branches, and collaboration with Git"
+order: 1
+duration: 12
+tags: ["git", "version-control", "fundamentals"]
+certifications: ["GitHub Foundations", "GitLab Certified Associate"]
+---
+import KeyPoints from '../../components/mdx/KeyPoints.astro';
+import Quiz from '../../components/mdx/Quiz.astro';
+import Callout from '../../components/mdx/Callout.astro';
+
+
+# Git Basics
+
+Git is a distributed version control system — it tracks changes to your code over time, lets you collaborate with others, and gives you a safety net to recover from mistakes. It's the single most important tool in a developer's workflow regardless of which language or platform you use.
+
+## How Git Works
+
+Git tracks your project inside a hidden `.git` folder at the root of your repository. Every time you commit, Git takes a snapshot of your files and stores it permanently. Unlike older version control systems that stored diffs, Git stores complete snapshots — making operations like branching and merging extremely fast.
+```
+Working Directory → Staging Area → Repository
+     (edit)            (add)         (commit)
+```
+
+- **Working directory** — where you edit files
+- **Staging area** — where you prepare changes for a commit
+- **Repository** — the permanent history of all commits
+
+## Initial Setup
+
+Before your first commit, tell Git who you are:
+```bash frame="terminal"
+git config --global user.name "Your Name"
+git config --global user.email "you@example.com"
+git config --global core.editor "code --wait"  # use VS Code as default editor
+```
+
+## Starting a Repository
+```bash frame="terminal"
+# Start a new repo in the current folder
+git init
+
+# Or clone an existing one
+git clone https://github.com/user/repo.git
+cd repo
+```
+
+## The Basic Workflow
+```bash frame="terminal"
+# Check what's changed
+git status
+
+# Stage specific files
+git add src/Main.java
+
+# Stage everything
+git add .
+
+# Commit with a message
+git commit -m "Add Main class with entry point"
+
+# See commit history
+git log --oneline
+```
+
+
+<Callout type="tip" title="Write Good Commit Messages">
+A good commit message completes the sentence: *"If applied, this commit will..."*
+```
+✅ Add input validation to login form
+✅ Fix null pointer exception in UserService
+✅ Refactor database connection pooling
+
+❌ fix bug
+❌ changes
+❌ WIP
+```
+</Callout>
+
+## Branching
+
+Branches let you work on features or fixes in isolation without affecting the main codebase.
+```bash frame="terminal"
+# Create and switch to a new branch
+git checkout -b feature/user-authentication
+
+# List all branches
+git branch
+
+# Switch between branches
+git checkout main
+git checkout feature/user-authentication
+
+# Modern syntax (Git 2.23+)
+git switch main
+git switch -c feature/new-feature
+```
+
+<Callout type="info">
+By convention, the main branch is called `main` in new repositories. Older repositories may use `master`.
+</Callout>
+
+## Merging
+
+Once your feature is ready, merge it back into main:
+```bash frame="terminal"
+# Switch to main first
+git switch main
+
+# Merge your feature branch
+git merge feature/user-authentication
+
+# Delete the branch after merging
+git branch -d feature/user-authentication
+```
+
+## Merge Conflicts
+
+Conflicts happen when two branches change the same part of the same file. Git marks them like this:
+```
+    public String getUsername() {
+```
+
+Everything between `<<<<<<< HEAD` and `=======` is your version. Everything between `=======` and `>>>>>>>` is the incoming branch. Edit the file to keep what you want, then:
+```bash frame="terminal"
+git add src/User.java
+git commit -m "Resolve merge conflict in User.java"
+```
+
+<Callout type="warning">
+Never leave conflict markers in your code. Always verify the file looks correct before committing the resolution.
+</Callout>
+
+## Working with Remotes
+
+A remote is a version of your repository hosted somewhere else — GitHub, GitLab, Bitbucket etc.
+```bash frame="terminal"
+# Add a remote
+git remote add origin https://github.com/user/repo.git
+
+# Push your branch to the remote
+git push origin main
+
+# Pull latest changes from remote
+git pull origin main
+
+# Fetch without merging (safer)
+git fetch origin
+
+# See all remotes
+git remote -v
+```
+
+## Undoing Things
+```bash frame="terminal"
+# Undo changes to a file before staging
+git restore src/Main.java
+
+# Unstage a file (keep changes in working dir)
+git restore --staged src/Main.java
+
+# Amend the last commit message
+git commit --amend -m "Better commit message"
+
+# Undo last commit but keep changes staged
+git reset --soft HEAD~1
+
+# Undo last commit and unstage changes
+git reset HEAD~1
+```
+
+<Callout type="danger" title="Avoid on Shared Branches">
+Never use `git reset` or `git push --force` on branches others are working on. It rewrites history and causes serious problems for your teammates.
+</Callout>
+
+## The .gitignore File
+
+Tell Git which files to never track — build outputs, secrets, IDE files:
+```bash title=".gitignore"
+# Java
+target/
+*.class
+*.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+```
+
+<Quiz
+  question="What is the correct order of the Git basic workflow?"
+  options={[
+    { label: "commit → add → edit" },
+    { label: "edit → commit → add" },
+    { label: "edit → add → commit", correct: true },
+    { label: "add → edit → commit" },
+  ]}
+  explanation="You first edit files in your working directory, then stage them with 'git add', then permanently snapshot them with 'git commit'."
+/>
+
+<KeyPoints>
+  - Git stores complete snapshots of your project, not just diffs
+  - The workflow is: edit → stage (`git add`) → commit (`git commit`)
+  - Branches are cheap and fast — use them for every feature or fix
+  - Always write meaningful commit messages that explain the why, not the what
+  - Use `.gitignore` to keep secrets, build outputs, and IDE files out of your repo
+  - Never force-push or reset on shared branches
+</KeyPoints>

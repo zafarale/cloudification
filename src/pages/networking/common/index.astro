@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('networking', ({ id }) =>
+  id.startsWith('common/')
+);
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/networking/common/${lesson.id.replace('common/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout 
+  title="Shared Networking Concepts"
+  description="Core networking concepts shared across all tracks. Cross-cutting topics that connect networking to cloud, programming, and more."
+  keywords={['networking concepts', 'shared concepts', 'cross-path learning', 'network fundamentals']}
+>
+  <PageHeader
+    title="Shared Concepts"
+    description="Core networking concepts that apply across all tracks and connect to other learning paths."
+    icon="🔗"
+    backHref="/networking"
+    backLabel="Back to Networking"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="purple" />
+</BaseLayout>

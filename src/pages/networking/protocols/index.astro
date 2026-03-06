@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('networking', ({ id }) =>
+  id.startsWith('protocols/')
+);
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/networking/protocols/${lesson.id.replace('protocols/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout 
+  title="Network Protocols"
+  description="Learn network protocols that power the internet. HTTP, DNS, WebSockets, gRPC, and application-layer communication."
+  keywords={['network protocols', 'HTTP', 'DNS', 'WebSockets', 'gRPC', 'application layer', 'protocol tutorials']}
+>
+  <PageHeader
+    title="Protocols"
+    description="HTTP, DNS, WebSockets, gRPC, and the application-layer protocols that power modern systems."
+    icon="🔌"
+    backHref="/networking"
+    backLabel="Back to Networking"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="green" />
+</BaseLayout>

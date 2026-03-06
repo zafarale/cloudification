@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('networking', ({ id }) =>
+  id.startsWith('security/')
+);
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/networking/security/${lesson.id.replace('security/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout 
+  title="Network Security"
+  description="Learn network security fundamentals. TLS/SSL encryption, firewalls, VPNs, authentication protocols, and securing network communication."
+  keywords={['network security', 'TLS', 'SSL', 'firewalls', 'VPN', 'encryption', 'security protocols']}
+>
+  <PageHeader
+    title="Security"
+    description="TLS/SSL, firewalls, VPNs, authentication protocols, and securing network communication."
+    icon="🔒"
+    backHref="/networking"
+    backLabel="Back to Networking"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="red" />
+</BaseLayout>

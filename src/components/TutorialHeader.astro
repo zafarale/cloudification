@@ -1,0 +1,50 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  title: string;
+  description: string;
+  icon?: string;
+  emoji?: string;
+  iconSize?: number;
+  backHref?: string;
+  backLabel?: string;
+  lessonCount: number;
+  sharedCount?: number;
+}
+
+const {
+  title,
+  description,
+  icon,
+  emoji,
+  iconSize = 48,
+  backHref = '/',
+  backLabel = 'Back to paths',
+  lessonCount,
+  sharedCount = 0,
+} = Astro.props;
+---
+
+<section class="max-w-5xl mx-auto px-6 pt-16 pb-12">
+  <a href={backHref} class="text-sm hover:text-gray-300 transition-colors mb-6 inline-block font-mono"
+    style="color: var(--text-faint)">
+    ← {backLabel}
+  </a>
+
+  <div class="flex items-center gap-4 mb-4">
+    <span class="text-5xl">
+      {icon ? <Icon name={icon} size={iconSize} /> : emoji}
+    </span>
+    <h1 class="text-5xl font-black tracking-tight font-mono">{title}</h1>
+  </div>
+
+  <p class="text-lg max-w-2xl leading-relaxed" style="color: var(--text-muted)">
+    {description}
+  </p>
+
+  <div class="flex gap-6 mt-8 text-sm font-mono" style="color: var(--text-faint)">
+    <span>{lessonCount} lessons</span>
+    {sharedCount > 0 && <span>{sharedCount} shared concepts</span>}
+  </div>
+</section>

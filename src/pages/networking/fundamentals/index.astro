@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('networking', ({ id }) =>
+  id.startsWith('fundamentals/')
+);
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/networking/fundamentals/${lesson.id.replace('fundamentals/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout 
+  title="Networking Fundamentals"
+  description="Master networking fundamentals. OSI model, TCP/IP stack, IP addressing, subnetting, routing, and how data travels across networks."
+  keywords={['networking fundamentals', 'OSI model', 'TCP/IP', 'IP addressing', 'subnetting', 'routing', 'network basics']}
+>
+  <PageHeader
+    title="Fundamentals"
+    description="OSI model, TCP/IP stack, IP addressing, subnets, routing, and the core concepts every developer needs."
+    icon="📡"
+    backHref="/networking"
+    backLabel="Back to Networking"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="blue" />
+</BaseLayout>

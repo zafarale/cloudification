@@ -1,0 +1,69 @@
+---
+---
+
+<button
+  id="theme-toggle"
+  aria-label="Toggle theme"
+  class="relative w-8 h-8 flex items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] hover:bg-white/10 transition-all duration-200 cursor-pointer"
+>
+  <!-- Sun icon -->
+  <svg
+    id="icon-sun"
+    xmlns="http://www.w3.org/2000/svg"
+    class="w-4 h-4 text-yellow-400"
+    fill="none" viewBox="0 0 24 24"
+    stroke="currentColor" stroke-width="2"
+  >
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+  </svg>
+
+  <!-- Moon icon -->
+  <svg
+    id="icon-moon"
+    xmlns="http://www.w3.org/2000/svg"
+    class="w-4 h-4 text-slate-400 hidden"
+    fill="none" viewBox="0 0 24 24"
+    stroke="currentColor" stroke-width="2"
+  >
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+</button>
+
+<script is:inline>
+  function getTheme() {
+    return document.documentElement.classList.contains('theme-day')
+      ? 'theme-day'
+      : 'theme-night';
+  }
+
+  function updateIcons(theme) {
+    const sun  = document.getElementById('icon-sun');
+    const moon = document.getElementById('icon-moon');
+    if (!sun || !moon) return;
+    if (theme === 'theme-night') {
+      sun.classList.remove('hidden');
+      moon.classList.add('hidden');
+    } else {
+      sun.classList.add('hidden');
+      moon.classList.remove('hidden');
+    }
+  }
+
+  function toggle() {
+    const current = getTheme();
+    const next = current === 'theme-night' ? 'theme-day' : 'theme-night';
+    const root = document.documentElement;
+    root.classList.remove('theme-day', 'theme-night');
+    root.classList.add(next);
+    root.dataset.theme = next === 'theme-day' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    updateIcons(next);
+  }
+
+  // Set initial icon
+  updateIcons(getTheme());
+
+  document.getElementById('theme-toggle')
+    ?.addEventListener('click', toggle);
+</script>

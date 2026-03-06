@@ -1,0 +1,43 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('programming', ({ id }) =>
+  id.startsWith('java/')
+);
+const commonLessons = await getCollection('programming', ({ id }) =>
+  id.startsWith('common/')
+);
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/programming/java/${lesson.id.replace('java/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,        // ← add this
+}));
+---
+
+<BaseLayout 
+  title="Java"
+  description="Learn Java from JVM fundamentals to production-ready applications. Object-oriented programming, Spring Boot, and enterprise development."
+  keywords={['Java programming', 'JVM', 'Spring Boot', 'object-oriented programming', 'enterprise Java', 'Java tutorials']}
+  certifications={['Oracle Certified Professional Java SE 17', 'Oracle Certified Professional Java SE 11', 'Spring Professional Certification']}
+>
+  <PageHeader
+    title="Java"
+    description="From JVM fundamentals to production-ready applications. Work through lessons in order — each builds on the last."
+    icon="☕"
+    backHref="/programming"
+    backLabel="Back to Programming"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="orange" />
+</BaseLayout>

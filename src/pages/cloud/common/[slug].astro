@@ -1,0 +1,194 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { Icon } from 'astro-icon/components';
+import { toCommonSlug } from '../../../lib/content-slugs';
+
+export async function getStaticPaths() {
+  const lessons = await getCollection('cloud', ({ id }) =>
+    id.startsWith('common/') || id.startsWith('_common/')
+  );
+
+  const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+
+  return sorted.flatMap((entry, index) => {
+    const slug = toCommonSlug(entry.id);
+
+    return [
+      {
+        params: { slug },
+        props: {
+          entry,
+          prev: sorted[index - 1] ?? null,
+          next: sorted[index + 1] ?? null,
+        },
+      },
+      {
+        params: { slug: `_${slug}` },
+        props: {
+          entry,
+          prev: sorted[index - 1] ?? null,
+          next: sorted[index + 1] ?? null,
+        },
+      },
+    ];
+  });
+}
+
+const { entry, prev, next } = Astro.props;
+const { Content } = await render(entry);
+
+const allCommon = await getCollection('cloud', ({ id }) =>
+  id.startsWith('common/') || id.startsWith('_common/')
+);
+const sorted = allCommon.sort((a, b) => a.data.order - b.data.order);
+
+const trackMeta: Record<string, { label: string; icon: string; classes: string }> = {
+  aws: {
+    label: 'AWS',
+    icon: 'skill-icons:aws-dark',
+    classes: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20 hover:bg-yellow-500/20',
+  },
+  azure: {
+    label: 'Azure',
+    icon: 'skill-icons:azure-dark',
+    classes: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
+  },
+};
+---
+
+<BaseLayout 
+  title={entry.data.title}
+  description={entry.data.description}
+  keywords={entry.data.tags || ['cloud', 'shared concepts']}
+  ogType="article"
+  certifications={entry.data.certifications}
+>
+  <div class="flex min-h-screen">
+
+    <!-- Sidebar -->
+    <aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/10 pt-8 pb-24 sticky top-0 h-screen overflow-y-auto">
+      <div class="px-4 mb-6">
+        <a href="/cloud" class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+          ← cloud
+        </a>
+      </div>
+
+      <div class="px-4 mb-4">
+        <span class="text-xs font-semibold uppercase tracking-widest text-gray-600">
+          Shared Concepts
+        </span>
+      </div>
+
+      {sorted.map((lesson, index) => {
+        const lessonSlug = toCommonSlug(lesson.id);
+        const isActive = lessonSlug === Astro.params.slug;
+        return (
+          <a
+            href={`/cloud/common/${lessonSlug}`}
+            class={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+              isActive
+                ? 'text-purple-400 bg-purple-500/10 border-r-2 border-purple-500'
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+            }`}
+          >
+            <span class="tabular-nums text-xs w-5 shrink-0 opacity-50">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            {lesson.data.title}
+          </a>
+        );
+      })}
+    </aside>
+
+    <!-- Main content -->
+    <main class="flex-1 min-w-0 px-8 lg:px-16 py-12 max-w-3xl">
+
+      <!-- Breadcrumb -->
+      <div class="flex items-center gap-2 text-xs text-gray-600 mb-8">
+        <a href="/cloud" class="hover:text-gray-400 transition-colors">cloud</a>
+        <span>/</span>
+        <span class="text-gray-400">Shared Concepts</span>
+        <span>/</span>
+        <span class="text-gray-400">{entry.data.title}</span>
+      </div>
+
+      <!-- Shared badge -->
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 mb-8">
+        <span class="text-xs font-semibold text-purple-400 uppercase tracking-widest">
+          🔗 Shared Concept
+        </span>
+      </div>
+
+      <!-- Lesson header -->
+      <div class="mb-10">
+        <h1 class="text-4xl font-black tracking-tight mb-3">{entry.data.title}</h1>
+        <p class="text-gray-400">{entry.data.description}</p>
+        <div class="flex items-center gap-4 mt-4">
+          {entry.data.duration && (
+            <span class="text-xs text-gray-600">{entry.data.duration} min read</span>
+          )}
+          {entry.data.tags && entry.data.tags.map(tag => (
+            <span class="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
+              {tag}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <!-- Applies to -->
+      {entry.data.sharedWith && entry.data.sharedWith.length > 0 && (
+        <div class="mb-8 rounded-lg border border-white/10 bg-white/5 p-4">
+          <p class="text-xs font-semibold uppercase tracking-widest text-gray-500 mb-3">
+            Applies to
+          </p>
+          <div class="flex gap-3">
+            {entry.data.sharedWith.map(track => {
+              const meta = trackMeta[track];
+              if (!meta) return null;
+
+              return (
+                <a
+                  href={`/cloud/${track}`}
+                  class={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${meta.classes}`}
+                >
+                  <Icon name={meta.icon} class="w-3.5 h-3.5" />
+                  {meta.label}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <!-- Markdown content -->
+      <article data-track class="prose prose-invert prose-purple max-w-none" style="--track: var(--color-purple-400); --track-bg: color-mix(in srgb, var(--color-purple-500) 10%, transparent); --track-border: color-mix(in srgb, var(--color-purple-500) 20%, transparent)">
+        <Content />
+      </article>
+
+      <!-- Prev / Next -->
+      <div class="flex items-center justify-between mt-16 pt-8 border-t border-white/10">
+        {prev ? (
+          <a
+            href={`/cloud/common/${toCommonSlug(prev.id)}`}
+            class="flex flex-col gap-1 group"
+          >
+            <span class="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">← Previous</span>
+            <span class="text-sm font-medium group-hover:text-purple-400 transition-colors">{prev.data.title}</span>
+          </a>
+        ) : <div />}
+
+        {next ? (
+          <a
+            href={`/cloud/common/${toCommonSlug(next.id)}`}
+            class="flex flex-col gap-1 items-end group"
+          >
+            <span class="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">Next →</span>
+            <span class="text-sm font-medium group-hover:text-purple-400 transition-colors">{next.data.title}</span>
+          </a>
+        ) : <div />}
+      </div>
+
+    </main>
+  </div>
+</BaseLayout>

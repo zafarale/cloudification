@@ -1,0 +1,75 @@
+---
+import { toCommonSlug } from '../lib/content-slugs';
+
+interface Lesson {
+  id: string;
+  data: {
+    title: string;
+    description: string;
+    order: number;
+    duration?: number;
+  };
+}
+
+interface Props {
+  lessons: Lesson[];
+  basePath: string;
+  title?: string;
+  color?: 'blue' | 'purple' | 'orange' | 'green' | 'red' | 'cyan' | 'yellow';
+}
+
+const { 
+  lessons, 
+  basePath, 
+  title = 'Shared across all tracks',
+  color = 'blue'
+} = Astro.props;
+
+const colorClasses: Record<string, string> = {
+  blue: 'group-hover:text-blue-400',
+  purple: 'group-hover:text-purple-400',
+  orange: 'group-hover:text-orange-400',
+  green: 'group-hover:text-green-400',
+  red: 'group-hover:text-red-400',
+  cyan: 'group-hover:text-cyan-400',
+  yellow: 'group-hover:text-yellow-400',
+};
+
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+---
+
+{lessons.length > 0 && (
+  <section class="max-w-5xl mx-auto px-6 pb-16">
+    <h2 class="text-sm font-semibold uppercase tracking-widest font-mono mb-4"
+      style="color: var(--text-faint)">
+      {title}
+    </h2>
+    <div class="rounded-xl divide-y" style="border: 1px solid var(--border); background: var(--bg-card); divide-color: var(--border);">
+      {sorted.map(lesson => (
+        <a
+          href={`${basePath}/${toCommonSlug(lesson.id)}`}
+          class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors group"
+        >
+          <div class="flex items-center gap-3">
+            <span class={`font-mono text-xs ${colorClasses[color]?.replace('group-hover:', '') || 'text-blue-400'}`}>🔗</span>
+            <div>
+              <p class="font-medium text-sm">{lesson.data.title}</p>
+              <p class="text-xs mt-0.5" style="color: var(--text-faint)">
+                {lesson.data.description}
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 shrink-0 ml-4">
+            {lesson.data.duration && (
+              <span class="text-xs font-mono" style="color: var(--text-faint)">
+                {lesson.data.duration}m
+              </span>
+            )}
+            <span class={`${colorClasses[color]} group-hover:translate-x-1 transition-all duration-200`}
+              style="color: var(--text-faint)">→</span>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+)}

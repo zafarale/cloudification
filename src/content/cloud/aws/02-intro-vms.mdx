@@ -1,0 +1,272 @@
+---
+title: "Amazon EC2"
+description: "EC2 instance types, pricing models, lifecycle, storage, networking, and how to choose the right configuration"
+order: 2
+duration: 22
+tags: ["ec2", "compute", "virtual-machines", "pricing", "ebs"]
+icon: "logos:aws-ec2"
+sharedConcepts: ["networking-basics"]
+certifications: ["AWS Cloud Practitioner", "AWS Solutions Architect Associate"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+Elastic Compute Cloud (EC2) is AWS's virtual machine service — one of the oldest and most fundamental pieces of the AWS platform. You launch a virtual server, choose the OS, CPU, memory, storage, and network configuration. Everything else in the compute stack (ECS, EKS, Beanstalk) ultimately runs on top of EC2.
+
+<KeyPoints>
+- How instance type families map to workload categories
+- The naming convention that decodes any instance type at a glance
+- The three pricing models and when each is cost-optimal
+- The EC2 instance lifecycle and what each state means for billing
+- Storage choices: EBS vs instance store, when each is appropriate
+- How to launch an instance into the correct VPC subnet and apply a Security Group
+</KeyPoints>
+
+---
+
+## Instance Type Naming Convention
+
+Every EC2 instance type name follows a structured format. Once you know the pattern, you can decode any instance type without looking it up.
+
+```
+m 7 g . 2 x l a r g e
+│ │ │   └── Size: nano, micro, small, medium, large, xlarge, 2xlarge…
+│ │ └────── Generation: 7th gen (higher = newer, more cost-efficient)
+│ └──────── Attribute: g = AWS Graviton (ARM), i = Intel, a = AMD
+└────────── Family: m = general purpose, c = compute, r = memory, etc.
+```
+
+**Instance families:**
+
+| Family | Optimised for | Typical use |
+|---|---|---|
+| **m** (general) | Balanced CPU/memory | Web servers, app servers, small DBs |
+| **c** (compute) | High CPU-to-memory | Batch processing, media encoding, HPC |
+| **r** (memory) | High memory-to-CPU | In-memory DBs, analytics engines, caches |
+| **t** (burstable) | Base CPU + burst credits | Dev/test, low-traffic workloads |
+| **i** (storage) | NVMe instance store | High-IOPS DBs, Hadoop, search indexes |
+| **p/g** (accelerated) | GPU/FPGA | ML training, rendering, video transcoding |
+
+---
+
+## Choosing the Right Instance Type
+
+```mermaid
+flowchart TD
+    START["What does your workload do?"]
+
+    WEBAPI{"Web / API server\nor general app?"}
+    CPUBOUND{"CPU-intensive:\nbatch, encoding,\nscientific?"}
+    MEMBOUND{"Memory-intensive:\nlarge in-memory\nDB or cache?"}
+    ML{"ML training\nor GPU workload?"}
+    BURST{"Low-traffic, dev/test,\nor variable load?"}
+
+    GENERAL["m-family\nm7g, m7i, m7a"]
+    COMPUTE["c-family\nc7g, c7i, c7a"]
+    MEMORY["r-family\nr7g, r7i, r7a"]
+    GPU["p/g-family\np4d, g5, inf2"]
+    BURSTABLE["t-family\nt3, t4g (Graviton)"]
+
+    START --> WEBAPI & CPUBOUND & MEMBOUND & ML & BURST
+    WEBAPI --> GENERAL
+    CPUBOUND --> COMPUTE
+    MEMBOUND --> MEMORY
+    ML --> GPU
+    BURST --> BURSTABLE
+```
+
+<Callout type="tip">
+**Default to Graviton (g suffix) for new workloads.** AWS Graviton (ARM) instances offer 20–40% better price-performance than equivalent x86 instances for most workloads. Go x86 only if your software has a hard dependency on it.
+</Callout>
+
+---
+
+## Pricing Models
+
+EC2 has three main pricing models. Choosing the right one is often the highest-impact cost optimisation you can make.
+
+```mermaid
+flowchart TD
+    WORKLOAD["What is the workload pattern?"]
+
+    STEADY{"Runs 24/7,\nalways on?"}
+    FLEX{"Can tolerate\ninterruption?"}
+    SHORT{"Short-lived,\nunpredictable?"}
+    COMMIT{"Can commit\n1 or 3 years?"}
+
+    ON_DEMAND["On-Demand\nPay per second\nNo commitment\nBaseline price"]
+    SPOT["Spot\n70–90% discount\nCan be interrupted\nwith 2-min notice"]
+    RESERVED["Reserved Instance\nor Savings Plan\n30–72% discount\n1yr or 3yr commit"]
+
+    WORKLOAD --> STEADY & FLEX & SHORT
+    STEADY --> COMMIT
+    COMMIT -- "Yes" --> RESERVED
+    COMMIT -- "No" --> ON_DEMAND
+    FLEX -- "Yes" --> SPOT
+    FLEX -- "No" --> ON_DEMAND
+    SHORT --> ON_DEMAND
+```
+
+| Model | Discount vs On-Demand | Best for | Risk |
+|---|---|---|---|
+| **On-Demand** | — | Unpredictable, new workloads, short bursts | Cost — no savings for steady state |
+| **Spot** | 70–90% | Batch jobs, Spark/Hadoop, fault-tolerant apps | Instance can be reclaimed with 2-min notice |
+| **Reserved Instance** | 30–72% | Stable 24/7 workloads, predictable baseline | Commitment — you pay whether you use it or not |
+| **Savings Plans** | Up to 66% | Flexible — applies to EC2, Lambda, Fargate | Commit to $/hour spend, not specific instance type |
+
+<Callout type="tip">
+**Savings Plans over Reserved Instances for most cases.** Compute Savings Plans apply to any instance family, size, region, or OS — you commit to a $/hour spend, not a specific instance. This gives you the discount flexibility to change instance types without losing the commitment benefit.
+</Callout>
+
+---
+
+## EC2 Instance Lifecycle
+
+Understanding the lifecycle determines what you're billed for and when.
+
+```mermaid
+flowchart TD
+    PENDING["Pending\nProvisioning resources\nNot billed"]
+    RUNNING["Running\n✅ Billed per second"]
+    STOPPING["Stopping\nShutting down OS"]
+    STOPPED["Stopped\nEBS volumes billed\nNo CPU/memory charge"]
+    HIBERNATE["Hibernating\nRAM saved to EBS\nFaster resume"]
+    TERMINATE["Shutting Down\nFinal state"]
+    TERMINATED["Terminated\n🗑 Not billed\nEBS deleted (default)"]
+    REBOOT["Reboot\nStays running, same host\nNo billing gap"]
+
+    PENDING --> RUNNING
+    RUNNING --> STOPPING
+    RUNNING --> REBOOT --> RUNNING
+    RUNNING --> HIBERNATE
+    STOPPING --> STOPPED
+    STOPPED --> RUNNING
+    HIBERNATE --> STOPPED
+    STOPPED --> TERMINATE
+    RUNNING --> TERMINATE
+    TERMINATE --> TERMINATED
+```
+
+Key billing facts:
+- **Stopped**: EBS storage is still billed. CPU/memory charge stops.
+- **Terminated**: Default EBS root volume is deleted. Non-root EBS volumes survive (configurable).
+- **Reboot**: Same physical host, same public/private IP, no billing interruption.
+- **Stop → Start**: May land on a different physical host. Elastic IP stays; automatic public IP changes.
+
+---
+
+## Storage: EBS vs Instance Store
+
+EC2 instances have two storage options with very different characteristics:
+
+```mermaid
+flowchart TD
+    STORAGE["EC2 Storage options"]
+
+    EBS["EBS (Elastic Block Store)\nNetwork-attached, persistent\nSurvives stop/terminate\nCan be snapshotted"]
+    IS["Instance Store\nPhysically attached NVMe\nLost when stopped/terminated\nHighest IOPS, lowest latency"]
+
+    EBS --> EBS_TYPES["Types:\ngp3 — general purpose SSD\nio2 — high-IOPS provisioned\nst1 — HDD throughput\nsc1 — cold HDD archival"]
+    IS --> IS_USE["Use for:\nTemporary buffers\nScratch / cache\nHadoop HDFS nodes\nDo NOT store data you need to keep"]
+```
+
+| | EBS | Instance Store |
+|---|---|---|
+| **Persistence** | Survives stop / terminate | Lost on stop / terminate / failure |
+| **Latency** | Sub-millisecond (network) | Microsecond (local NVMe) |
+| **Snapshotable** | Yes → S3 → cross-region copy | No |
+| **Default for** | Root volume, databases | Scratch, cache, Kafka log dirs |
+
+---
+
+## Launching an Instance: VPC and Security Group Placement
+
+<Callout type="info">
+**VPC and Security Group fundamentals** are covered in the [Cloud Networking Basics](/cloud/common/networking-basics) shared lesson. This section focuses on the EC2-specific decisions.
+</Callout>
+
+When launching an EC2 instance, the critical network decisions are:
+
+```mermaid
+flowchart TD
+    LAUNCH["Launch EC2 instance"]
+
+    VPC["Select VPC\n(which environment?)"]
+    SUBNET["Select Subnet\n(public or private tier?\nwhich AZ?)"]
+    SG["Assign Security Group\n(what can reach this instance?)"]
+    ROLE["Attach IAM Role\n(what can this instance do?)"]
+    KEY["Key pair / SSM\n(how will you connect?)"]
+    EBS_SIZE["Configure EBS\n(size, type, encryption)"]
+
+    LAUNCH --> VPC --> SUBNET --> SG --> ROLE --> KEY --> EBS_SIZE
+```
+
+**Instance placement checklist:**
+
+| Decision | Production default |
+|---|---|
+| Subnet type | Private (app tier) — not public |
+| Public IP | Disabled for app/data tier; load balancer gets the public IP |
+| Security Group | Explicit inbound from load balancer SG only |
+| IAM Role | Least-privilege role for what the instance actually needs |
+| Access method | AWS Systems Manager Session Manager — no SSH key required |
+| EBS encryption | Enable at launch using CMK from KMS |
+
+<Callout type="warning">
+**Stop opening port 22 to the internet.** AWS Systems Manager Session Manager provides browser/CLI shell access without any open inbound ports, without managing SSH keys, and with full audit logs. Use it instead of SSH for any new instance.
+</Callout>
+
+---
+
+## Placement Groups
+
+For latency-sensitive or tightly-coupled workloads, EC2 placement groups control how instances are distributed across physical hardware:
+
+```mermaid
+flowchart TD
+    PG["Placement Group Types"]
+
+    CLUSTER["Cluster\nAll instances in same AZ\nsame hardware rack\nLowest latency\nHighest risk — rack failure = all down"]
+    SPREAD["Spread\nEach instance on\ndifferent hardware rack\nMax 7 per AZ\nHighest isolation"]
+    PARTITION["Partition\nGroups of instances\non separate racks\n(7 partitions/AZ)\nFor Kafka, Cassandra, HDFS"]
+
+    PG --> CLUSTER & SPREAD & PARTITION
+```
+
+| Type | Use when |
+|---|---|
+| **Cluster** | HPC, distributed ML training, low-latency inter-node communication |
+| **Spread** | Small set of critical instances that must survive individual hardware failure |
+| **Partition** | Large distributed systems (Kafka, Cassandra) — rack awareness built in |
+
+---
+
+## Knowledge Check
+
+<Quiz
+  question="You have a batch processing job that runs for 4 hours each night and can tolerate being interrupted. What pricing model minimises cost?"
+  options={[
+    "On-Demand — flexibility is more important for batch jobs",
+    "Reserved Instances — commit for 1 year to get the maximum discount",
+    "Spot Instances — deep discount, and the job can checkpoint and restart if interrupted",
+    "Savings Plans — most flexible discount tier"
+  ]}
+  answer="Spot Instances — deep discount, and the job can checkpoint and restart if interrupted"
+  explanation="Spot instances provide 70–90% discount over On-Demand. For batch workloads that can handle interruption (by checkpointing progress to S3 or EFS), Spot is the correct choice. Reserved/Savings plans require commitment and are designed for steady-state 24/7 workloads — a nightly 4-hour job would leave most of the reserved capacity unused during the day."
+/>
+
+---
+
+<KeyPoints title="EC2 Checklist">
+- Decode any instance type name: Family + Generation + Attribute + Size
+- Default to Graviton (g suffix) for new x86-compatible workloads
+- Use On-Demand for unpredictable, Reserved/Savings Plan for steady-state, Spot for fault-tolerant batch
+- Stopped instances: EBS still billed, CPU/memory not billed
+- EBS for persistent data (databases, root volumes); instance store for ephemeral scratch only
+- Launch into private subnet, no public IP on app tier, load balancer in public subnet
+- Use IAM Roles on instances — never hard-code credentials
+- Use Session Manager instead of SSH — no open port 22 required
+</KeyPoints>

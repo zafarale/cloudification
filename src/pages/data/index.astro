@@ -1,0 +1,76 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import TutorialHeader from '../../components/TutorialHeader.astro';
+import SharedLessons from '../../components/SharedLessons.astro';
+import CrossPathNote from '../../components/CrossPathNote.astro';
+import FeatureCard from '../../components/FeatureCard.astro';
+import { getCollection } from 'astro:content';
+
+const all = await getCollection('data');
+
+const sqlLessons      = all.filter(({ id }) => id.startsWith('sql/'));
+const nosqlLessons    = all.filter(({ id }) => id.startsWith('nosql/'));
+const warehouseLessons = all.filter(({ id }) => id.startsWith('warehousing/'));
+const commonLessons   = all.filter(({ id }) => id.startsWith('common/'));
+---
+
+<BaseLayout 
+  title="Data"
+  description="Master data management from SQL to NoSQL to data warehousing. Learn PostgreSQL, MongoDB, Redis, Snowflake, and analytical query engines."
+  keywords={['SQL tutorials', 'NoSQL databases', 'PostgreSQL', 'MongoDB', 'Redis', 'data warehousing', 'Snowflake', 'database design']}
+  certifications={['MongoDB Certified Developer', 'Snowflake SnowPro Core', 'AWS Database Specialty', 'Google Cloud Professional Data Engineer']}
+>
+
+  <TutorialHeader
+    title="Data"
+    description="Data organisation, storage, and management. From SQL fundamentals to distributed warehousing — choose a track and go deep."
+    emoji="🗄️"
+    lessonCount={sqlLessons.length + nosqlLessons.length + warehouseLessons.length}
+    sharedCount={commonLessons.length}
+  />
+
+  <!-- Track cards -->
+  <section class="max-w-5xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+    <FeatureCard
+      title="SQL"
+      description="Relational databases, queries, joins, indexes, and transactions. The foundation every developer needs."
+      href="/data/sql"
+      icon="logos:data-station"
+      color="cyan"
+      tags={[{ icon: "logos:postgresql" }, { icon: "logos:mysql" }]}
+      lessonCount={sqlLessons.length}
+    />
+
+    <FeatureCard
+      title="NoSQL"
+      description="Document, key-value, graph, and columnar databases. When relational isn't the right tool."
+      href="/data/nosql"
+      emoji="🍃"
+      color="yellow"
+      tags={[{ icon: "logos:mongodb" }, { icon: "logos:redis" }]}
+      lessonCount={nosqlLessons.length}
+    />
+
+    <FeatureCard
+      title="Warehousing"
+      description="Data warehouses, lakes, ETL pipelines, and analytical query engines at scale."
+      href="/data/warehousing"
+      emoji="🏭"
+      color="purple"
+      tags={[{ icon: "logos:snowflake" }, { icon: "logos:aws-redshift" }]}
+      lessonCount={warehouseLessons.length}
+    />
+  </section>
+
+  <SharedLessons
+    lessons={commonLessons}
+    basePath="/data/common"
+    color="purple"
+  />
+
+  <CrossPathNote
+    title="Data concepts connect to every other path"
+    description="AWS RDS, Aurora, and DynamoDB are covered in the Cloud track. Java and Rust both have first-class database libraries. CI/CD pipelines often include database migrations. Look out for cross-path callouts as you progress."
+  />
+
+</BaseLayout>

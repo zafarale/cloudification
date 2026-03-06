@@ -1,0 +1,50 @@
+---
+title: "TLS/SSL Fundamentals"
+description: "Securing network communication with encryption"
+order: 1
+duration: 12
+tags: ["tls", "ssl", "security", "encryption"]
+---
+
+TLS (Transport Layer Security) is the protocol that secures communication over networks. When you see HTTPS, TLS is what makes it secure.
+
+## Why TLS?
+
+Without encryption, network traffic can be:
+- **Intercepted** — Anyone on the network can read your data
+- **Modified** — Attackers can alter data in transit
+- **Impersonated** — No way to verify who you're talking to
+
+TLS solves all three problems through **encryption**, **integrity checks**, and **authentication**.
+
+## The TLS Handshake
+
+Before encrypted communication begins, client and server perform a handshake:
+
+```
+Client                         Server
+  |                               |
+  |---- ClientHello ------------>|
+  |                               |
+  |<--- ServerHello + Cert ------|
+  |                               |
+  |---- Key Exchange ----------->|
+  |                               |
+  |<--- Finished ----------------|
+  |                               |
+  |==== Encrypted Traffic =======|
+```
+
+## Certificates
+
+TLS relies on **X.509 certificates** to verify identity:
+
+- **Certificate Authority (CA)** — Trusted third party that signs certificates
+- **Public Key** — Included in certificate, used for encryption
+- **Private Key** — Kept secret by the server
+
+## Common Issues
+
+- **Certificate expiration** — Certificates have a validity period
+- **Chain of trust** — All certificates in the chain must be valid
+- **Mixed content** — HTTP resources on HTTPS pages

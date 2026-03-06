@@ -1,0 +1,674 @@
+---
+title: "Block Storage on AWS: EBS Deep Dive"
+description: "Master AWS Elastic Block Store — volume types with real performance numbers, instance store trade-offs, filesystem setup, online resizing, snapshots, encryption, and production operations."
+order: 4
+duration: 28
+tags: ["storage", "ebs", "block-storage", "ec2", "performance", "snapshots"]
+icon: "aws/storage/elastic-block-store"
+certifications: ["AWS Solutions Architect Associate", "AWS SysOps Administrator Associate"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+# Block Storage on AWS: EBS Deep Dive
+
+Persistent block storage is the foundation of almost every EC2-based architecture. **Amazon Elastic Block Store (EBS)** provides network-attached block devices with a range of performance profiles. Choosing, configuring, and operating EBS correctly has a direct impact on application reliability, cost, and latency.
+
+## What You Will Master
+
+By the end of this lesson you will be able to:
+
+- Distinguish EBS from instance store and know which to use when
+- Read the EBS volume type table and match each type to a real workload
+- Calculate required IOPS and throughput for a given workload profile
+- Set up, mount, and auto-mount a data volume from the Linux command line
+- Expand an EBS volume and filesystem online without downtime
+- Design a snapshot strategy using AWS Data Lifecycle Manager
+- Copy snapshots cross-region and use Fast Snapshot Restore
+- Enforce encryption with KMS, including key policy boundaries
+- Configure CloudWatch alarms for storage capacity and IO pressure
+
+---
+
+## Instance Store vs EBS
+
+EC2 gives you two categories of storage. Understanding the difference prevents catastrophic data loss.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        EC2 Instance                             │
+│                                                                 │
+│  ┌───────────────────┐        ┌──────────────────────────────┐  │
+│  │   Instance Store  │        │          EBS Volume           │  │
+│  │                   │        │                              │  │
+│  │  NVMe SSD on host │        │  Network-attached block dev  │  │
+│  │  Physically local │        │  Survives stop/start          │  │
+│  │  Lost on stop/    │        │  AZ-scoped                   │  │
+│  │  terminate        │        │  Can snapshot to S3          │  │
+│  └───────────────────┘        └──────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Property | Instance Store | EBS |
+|---|---|---|
+| **Durability** | Lost on stop/terminate | Persistent |
+| **Latency** | Sub-millisecond (local NVMe) | 1–2 ms (SSD), higher for HDD |
+| **Throughput** | Very high (i3en: 19 GB/s) | Up to ~12.5 Gbps for `io2 BE` |
+| **Cost** | Included with instance price | Billed per GB-month + IOPS |
+| **Snapshot** | Not natively supported | S3-backed incremental snapshots |
+| **Best for** | Scratch space, caching, ephemeral shuffle data | OS disk, databases, stateful workloads |
+
+<Callout type="warning" title="Instance Store Data is Ephemeral">
+Any data on instance store **disappears** when the instance is stopped, hibernated, or terminated. Use it only for data you can afford to lose: caches, temp files, Spark shuffle storage, or replicated distributed system partitions.
+</Callout>
+
+---
+
+## EBS Volume Types: Numbers That Matter
+
+Each volume type targets a distinct workload class. The table below includes actual performance ceilings — memorise the order of magnitude differences, not every exact number.
+
+| Volume | Class | Max Size | Max IOPS | Max Throughput | Latency | Durability |
+|---|---|---|---|---|---|---|
+| **gp3** | SSD general | 16 TiB | 16,000 | 1,000 MiB/s | single-digit ms | 99.8–99.9% |
+| **gp2** | SSD general (legacy) | 16 TiB | 16,000 (3 IOPS/GB) | 250 MiB/s | single-digit ms | 99.8–99.9% |
+| **io2** | SSD provisioned | 64 TiB | 64,000 | 1,000 MiB/s | sub-ms | 99.999% |
+| **io2 Block Express** | SSD provisioned | 64 TiB | 256,000 | 4,000 MiB/s | sub-ms | 99.999% |
+| **st1** | HDD throughput | 16 TiB | 500 | 500 MiB/s | tens of ms | 99.8–99.9% |
+| **sc1** | HDD cold | 16 TiB | 250 | 250 MiB/s | tens of ms | 99.8–99.9% |
+
+**Key observations:**
+- `gp2` IOPS are tied to volume size (3 IOPS per GiB). `gp3` decouples them — you pay for IOPS independently, making migration from gp2 almost always cheaper.
+- `io2 Block Express` requires Nitro-based instances and delivers near-NVMe latency over the network.
+- HDD types (`st1`, `sc1`) have burst performance models — they accumulate credits during idle periods to serve burst IO.
+
+<Callout type="tip" title="Always Start with gp3">
+`gp3` is the baseline choice. Provision up to 3,000 IOPS and 125 MiB/s for free (included with the GB-month price) — only pay extra if you need more. This makes it better value than gp2 in almost every scenario.
+</Callout>
+
+### gp3 vs io2 Decision Matrix
+
+| Requirement | Use gp3 | Use io2 / io2 BE |
+|---|---|---|
+| Max IOPS needed | ≤ 16,000 | > 16,000 |
+| Durability SLA | 99.9% acceptable | 99.999% required |
+| Latency tolerance | single-digit ms OK | sub-ms needed |
+| Multi-Attach | Not needed | Required (io1/io2) |
+| Example workloads | Web servers, CI, MySQL | Oracle, SAP HANA, PostgreSQL on heavy write paths |
+
+---
+
+## Performance Mental Model
+
+EBS performance has three independent axes. A workload can max out on any one of them:
+
+```
+IOPS (ops/sec)      ──────── random small IO   (4 KiB – 16 KiB)
+Throughput (MiB/s)  ──────── sequential large IO (64 KiB – 1 MiB)
+Latency (ms)        ──────── round-trip time for a single IO op
+
+Bottleneck diagnosis:
+  High VolumeQueueLength + normal IOPS  → volume saturated at throughput
+  Low IOPS + low throughput → maybe workload is blocked on kernel or app
+  High IOPS at ceiling      → provision more IOPS on gp3/io2
+```
+
+**Practical profiling before resizing:**
+
+```bash frame="terminal"
+# Install fio (flexible IO tester) on Amazon Linux 2023
+sudo dnf install -y fio
+
+# Measure random 4K IOPS (reads)
+sudo fio --name=rand-read --filename=/dev/nvme1n1 --rw=randread \
+  --bs=4k --numjobs=4 --iodepth=32 --time_based --runtime=60 \
+  --group_reporting --ioengine=libaio
+
+# Measure sequential throughput (128K writes)
+sudo fio --name=seq-write --filename=/dev/nvme1n1 --rw=write \
+  --bs=128k --numjobs=1 --iodepth=16 --time_based --runtime=60 \
+  --group_reporting --ioengine=libaio
+```
+
+**Queue depth matters:** a volume delivering 16,000 IOPS with `iodepth=1` will not reach that ceiling. Modern SSD volumes need sufficient IO depth to saturate their internal parallelism.
+
+---
+
+## EBS-Optimized Instances
+
+EBS volumes share bandwidth with the instance's regular network traffic unless the instance is **EBS-optimized**. All current-generation Nitro instances are EBS-optimized by default.
+
+- Dedicated bandwidth for EBS IO (separate from VPC network)
+- Maximum EBS bandwidth is per-instance, not per-volume — if you attach multiple volumes, they share the instance's EBS bandwidth pool
+- Example: `m6i.xlarge` has a baseline 4,750 Mbps EBS bandwidth
+
+<Callout type="info" title="Instance Bandwidth Is a Hidden Bottleneck">
+You may think you're limited by the volume, but the instance itself might be the ceiling. Always check instance EBS bandwidth in the EC2 docs alongside volume limits.
+</Callout>
+
+---
+
+## Filesystem Setup and Mounting
+
+EBS volumes appear as block devices. You must create a partition table, filesystem, and mount configuration.
+
+### Device Naming on Nitro Instances
+
+Nitro-based EC2 instances expose EBS volumes as NVMe devices regardless of what device name you specify in the AWS API:
+
+| AWS API device | Nitro kernel device |
+|---|---|
+| `/dev/xvdf` | `/dev/nvme1n1` |
+| `/dev/xvdg` | `/dev/nvme2n1` |
+| Root (OS) | `/dev/nvme0n1` |
+
+Use `lsblk` to enumerate actual block devices rather than relying on the API name.
+
+<CodeTabs tabs={[
+  {
+    label: "Mount new volume",
+    lang: "bash",
+    code: `# 1. Find the new device
+lsblk
+# or with AWS tags
+sudo nvme id-ctrl /dev/nvme1n1 | grep -i "mn"
+
+# 2. Create filesystem (ext4 is standard; xfs for large files)
+sudo mkfs -t xfs /dev/nvme1n1
+
+# 3. Create mount point
+sudo mkdir -p /data
+
+# 4. Mount manually (temp)
+sudo mount /dev/nvme1n1 /data
+
+# 5. Get UUID for permanent mount
+sudo blkid /dev/nvme1n1
+# Output: /dev/nvme1n1: UUID="a1b2c3..." TYPE="xfs"`
+  },
+  {
+    label: "Persistent /etc/fstab",
+    lang: "bash",
+    code: `# Append to /etc/fstab using UUID (never use device path directly)
+echo "UUID=a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx /data xfs defaults,nofail 0 2" | \\
+  sudo tee -a /etc/fstab
+
+# Verify fstab is valid (prevents boot failure if UUID wrong)
+sudo mount -a
+
+# Confirm mount
+df -h /data`
+  },
+  {
+    label: "Set permissions",
+    lang: "bash",
+    code: `# Change ownership to the application user
+sudo chown -R appuser:appuser /data
+
+# Set group write permission
+sudo chmod 775 /data
+
+# Verify
+ls -la /data`
+  },
+]} />
+
+<Callout type="warning" title="Use UUID in fstab, Not Device Path">
+Device paths like `/dev/nvme1n1` can change across reboots if multiple volumes are attached. Always use the `UUID` (from `blkid`) to ensure the correct volume mounts.
+</Callout>
+
+---
+
+## Online Volume Expansion
+
+EBS lets you change volume size, IOPS, and throughput without detaching or rebooting. The OS filesystem needs a separate resize step after the volume is expanded.
+
+<CodeTabs tabs={[
+  {
+    label: "Resize EBS volume",
+    lang: "bash",
+    code: `# 1. Get the volume ID
+aws ec2 describe-volumes \\
+  --filters Name=attachment.instance-id,Values=i-0abc123def456 \\
+  --query 'Volumes[*].[VolumeId,Size,VolumeType]' \\
+  --output table
+
+# 2. Modify the volume (online, no downtime)
+aws ec2 modify-volume \\
+  --volume-id vol-0abc123def456 \\
+  --size 500 \\
+  --iops 8000 \\
+  --throughput 500
+
+# 3. Monitor modification progress
+aws ec2 describe-volumes-modifications \\
+  --volume-ids vol-0abc123def456 \\
+  --query 'VolumesModifications[*].[ModificationState,Progress]'`
+  },
+  {
+    label: "Resize XFS filesystem",
+    lang: "bash",
+    code: `# After modification state reaches "completed":
+
+# Expand partition if needed (for data volumes; root volumes handled automatically by most AMIs)
+sudo growpart /dev/nvme1n1 1
+
+# Grow XFS filesystem to fill available space
+sudo xfs_growfs /data
+
+# Verify new size
+df -h /data`
+  },
+  {
+    label: "Resize ext4 filesystem",
+    lang: "bash",
+    code: `# After EBS modification completes:
+
+# Expand partition
+sudo growpart /dev/nvme1n1 1
+
+# Resize ext4 (can be done online on Linux 3.10+)
+sudo resize2fs /dev/nvme1n1p1
+
+# Verify
+df -h /data`
+  },
+]} />
+
+---
+
+## Volume Operations with AWS CLI
+
+<CodeTabs tabs={[
+  {
+    label: "Create volume",
+    lang: "bash",
+    code: `aws ec2 create-volume \\
+  --availability-zone us-east-1a \\
+  --size 100 \\
+  --volume-type gp3 \\
+  --iops 3000 \\
+  --throughput 125 \\
+  --encrypted \\
+  --kms-key-id alias/my-app-key \\
+  --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value=app-data},{Key=Env,Value=prod}]'`
+  },
+  {
+    label: "Attach volume",
+    lang: "bash",
+    code: `# Attach to a running or stopped instance
+aws ec2 attach-volume \\
+  --volume-id vol-0abc123def456 \\
+  --instance-id i-0ec2instanceid \\
+  --device /dev/xvdf
+# On Nitro: this will appear as /dev/nvme1n1 inside the OS`
+  },
+  {
+    label: "Detach volume",
+    lang: "bash",
+    code: `# Unmount first from inside the OS to avoid data loss
+# sudo umount /data
+
+aws ec2 detach-volume \\
+  --volume-id vol-0abc123def456 \\
+  --force  # only if instance is terminated/unresponsive`
+  },
+  {
+    label: "Delete volume",
+    lang: "bash",
+    code: `# Volume must be in 'available' state (not attached)
+aws ec2 delete-volume \\
+  --volume-id vol-0abc123def456`
+  },
+]} />
+
+---
+
+## Multi-Attach: Sharing a Volume Across Instances
+
+`io1` and `io2` volumes support **Multi-Attach**, allowing one volume to be attached to up to 16 Nitro instances simultaneously within the same AZ.
+
+```
+io2 volume (MultiAttach enabled)
+  ├── EC2 node-01 (AZ-a)
+  ├── EC2 node-02 (AZ-a)
+  └── EC2 node-03 (AZ-a)
+```
+
+**Requirements and limits:**
+
+- Only `io1`/`io2` support Multi-Attach
+- All instances must be in the same AZ as the volume
+- The filesystem must be a **cluster-aware filesystem** (e.g., OCFS2, GFS2) — standard ext4/XFS are not safe for concurrent writes from multiple hosts
+- Use case: shared-disk clustered databases, clustered file services
+
+<Callout type="warning" title="Multi-Attach Is Not a Simple Shared Drive">
+Attaching a standard ext4 volume to two instances simultaneously will corrupt data. This feature is only safe with applications and filesystems designed for concurrent multi-host access.
+</Callout>
+
+---
+
+## Snapshots: Backup, Recovery, and Automation
+
+EBS snapshots are **incremental**, stored in S3. Only changed blocks are stored after the first full snapshot, keeping storage costs proportional to churn rather than volume size.
+
+```
+Snapshot 1 (full):    [AAAA BBBB CCCC]
+Snapshot 2 (incr):    [     BBBB'    ]  ← only changed B blocks
+Snapshot 3 (incr):    [AAAA'         ]  ← only changed A blocks
+
+Restoring to snap-3 = S1 base + S2 deltas + S3 deltas
+```
+
+<CodeTabs tabs={[
+  {
+    label: "Create snapshot",
+    lang: "bash",
+    code: `# Create a snapshot with description and tags
+aws ec2 create-snapshot \\
+  --volume-id vol-0abc123def456 \\
+  --description "nightly-backup-$(date +%Y%m%d)" \\
+  --tag-specifications 'ResourceType=snapshot,Tags=[{Key=Env,Value=prod},{Key=Retention,Value=30d}]'
+
+# Wait for snapshot to complete
+aws ec2 wait snapshot-completed \\
+  --snapshot-ids snap-0abc123def456`
+  },
+  {
+    label: "Cross-region copy",
+    lang: "bash",
+    code: `# Copy snapshot to another region for DR
+aws ec2 copy-snapshot \\
+  --source-region us-east-1 \\
+  --source-snapshot-id snap-0abc123def456 \\
+  --destination-region eu-west-1 \\
+  --description "DR copy of prod-app snapshot" \\
+  --encrypted \\
+  --kms-key-id arn:aws:kms:eu-west-1:123456789012:key/target-key-id \\
+  --region eu-west-1`
+  },
+  {
+    label: "Restore volume",
+    lang: "bash",
+    code: `# Create a new volume from a snapshot
+aws ec2 create-volume \\
+  --snapshot-id snap-0abc123def456 \\
+  --availability-zone us-east-1a \\
+  --volume-type gp3 \\
+  --iops 3000 \\
+  --encrypted \\
+  --tag-specifications 'ResourceType=volume,Tags=[{Key=Name,Value=app-data-restored}]'`
+  },
+  {
+    label: "Fast Snapshot Restore",
+    lang: "bash",
+    code: `# Enable Fast Snapshot Restore on a snapshot for a specific AZ
+# FSR pre-warms snapshot blocks to eliminate first-touch latency
+aws ec2 enable-fast-snapshot-restores \\
+  --availability-zones us-east-1a us-east-1b \\
+  --source-snapshot-ids snap-0abc123def456
+
+# Check FSR status
+aws ec2 describe-fast-snapshot-restores \\
+  --filters Name=snapshot-id,Values=snap-0abc123def456`
+  },
+]} />
+
+### AWS Data Lifecycle Manager (DLM)
+
+DLM automates snapshot creation and retention policies without custom Lambda functions.
+
+```bash frame="terminal"
+# Create a DLM lifecycle policy (30-day retention, daily at 00:00 UTC)
+aws dlm create-lifecycle-policy \
+  --description "Daily EBS backup - 30 day retention" \
+  --state ENABLED \
+  --execution-role-arn arn:aws:iam::123456789012:role/AWSDataLifecycleManagerDefaultRole \
+  --policy-details '{
+    "PolicyType": "EBS_SNAPSHOT_MANAGEMENT",
+    "ResourceTypes": ["VOLUME"],
+    "TargetTags": [{"Key": "Backup", "Value": "daily"}],
+    "Schedules": [{
+      "Name": "DailySnapshots",
+      "CreateRule": {"Interval": 24, "IntervalUnit": "HOURS", "Times": ["00:00"]},
+      "RetainRule": {"Count": 30},
+      "CopyTags": true
+    }]
+  }'
+```
+
+Tag your volumes with `Backup: daily` and DLM handles the rest.
+
+<Callout type="warning" title="Test Restores Regularly">
+A snapshot policy without periodic restore validation gives false confidence. Schedule quarterly restore tests into a clean environment, time the RTO, and document it.
+</Callout>
+
+---
+
+## Encryption
+
+EBS encryption is transparent to applications — IO is encrypted in transit between the EC2 host and EBS, and at rest on the storage nodes.
+
+### Key Model
+
+```
+Volume encrypt options:
+  1. AWS managed key  (aws/ebs)      – default, no cost, less control
+  2. Customer managed key (CMK)      – full key policy control, audit trail
+  3. Key per environment/account     – strong isolation boundary
+```
+
+<CodeTabs tabs={[
+  {
+    label: "Account default encryption",
+    lang: "bash",
+    code: `# Enable EBS default encryption for all new volumes in a region
+aws ec2 enable-ebs-encryption-by-default --region us-east-1
+
+# Verify
+aws ec2 get-ebs-encryption-by-default --region us-east-1`
+  },
+  {
+    label: "Encrypt existing volume",
+    lang: "bash",
+    code: `# You cannot encrypt a volume in place.
+# Workflow: snapshot → copy with encryption → restore
+
+# Step 1: Create snapshot of unencrypted volume
+aws ec2 create-snapshot \\
+  --volume-id vol-0unencrypted \\
+  --description "pre-encrypt backup"
+
+# Step 2: Copy snapshot with encryption
+aws ec2 copy-snapshot \\
+  --source-region us-east-1 \\
+  --source-snapshot-id snap-0abc123 \\
+  --region us-east-1 \\
+  --encrypted \\
+  --kms-key-id alias/my-key
+
+# Step 3: Create new encrypted volume from encrypted snapshot
+aws ec2 create-volume \\
+  --snapshot-id snap-0encrypted \\
+  --availability-zone us-east-1a \\
+  --volume-type gp3 \\
+  --encrypted`
+  },
+  {
+    label: "IAM policy boundary",
+    lang: "json",
+    code: `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyUnencryptedVolumes",
+      "Effect": "Deny",
+      "Action": "ec2:CreateVolume",
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "ec2:Encrypted": "false"
+        }
+      }
+    }
+  ]
+}`
+  },
+]} />
+
+---
+
+## CloudWatch Metrics and Alerting
+
+Key EBS metrics to monitor in production:
+
+| Metric | What it tells you | Alert threshold example |
+|---|---|---|
+| `VolumeReadOps` / `VolumeWriteOps` | Total IO operations | Baseline deviation > 3σ |
+| `VolumeReadBytes` / `VolumeWriteBytes` | Throughput | Near volume max |
+| `VolumeQueueLength` | Pending IO ops | > 1 sustained (SSD), > 2 (HDD) |
+| `BurstBalance` | gp2/st1/sc1 burst credit | < 10% |
+| `VolumeThroughputPercentage` | % of provisioned throughput used | > 90% sustained |
+
+<CodeTabs tabs={[
+  {
+    label: "Queue depth alarm",
+    lang: "bash",
+    code: `# Alert when queue depth stays elevated (indicates IO saturation)
+aws cloudwatch put-metric-alarm \\
+  --alarm-name "EBS-QueueDepth-High-vol-0abc" \\
+  --metric-name VolumeQueueLength \\
+  --namespace AWS/EBS \\
+  --dimensions Name=VolumeId,Value=vol-0abc123def456 \\
+  --statistic Average \\
+  --period 60 \\
+  --evaluation-periods 3 \\
+  --threshold 1 \\
+  --comparison-operator GreaterThanOrEqualToThreshold \\
+  --alarm-actions arn:aws:sns:us-east-1:123456789012:ops-alerts`
+  },
+  {
+    label: "Burst balance alarm",
+    lang: "bash",
+    code: `# Alert when gp2/st1 burst credit is depleted
+aws cloudwatch put-metric-alarm \\
+  --alarm-name "EBS-BurstBalance-Low-vol-0abc" \\
+  --metric-name BurstBalance \\
+  --namespace AWS/EBS \\
+  --dimensions Name=VolumeId,Value=vol-0abc123def456 \\
+  --statistic Average \\
+  --period 300 \\
+  --evaluation-periods 2 \\
+  --threshold 10 \\
+  --comparison-operator LessThanOrEqualToThreshold \\
+  --alarm-actions arn:aws:sns:us-east-1:123456789012:ops-alerts`
+  },
+]} />
+
+---
+
+## Advanced Architecture Patterns
+
+### RAID 0 Striping for Higher Aggregate Performance
+
+For workloads that exhaust a single volume's IOPS or throughput ceiling, you can stripe across multiple volumes using Linux software RAID:
+
+```bash frame="terminal"
+# Stripe 4 x gp3 volumes with mdadm
+sudo mdadm --create /dev/md0 \
+  --level=0 --chunk=64 \
+  --raid-devices=4 \
+  /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1
+
+# Create filesystem on the RAID device
+sudo mkfs -t xfs /dev/md0
+
+# Mount
+sudo mkdir -p /data-stripe
+sudo mount /dev/md0 /data-stripe
+```
+
+**Trade-off**: RAID 0 has no redundancy — losing one volume loses all data. Rely on snapshots of each member volume for durability, or use RAID 10 if redundancy is also required.
+
+### Root + Data Volume Separation
+
+```
+EC2 Instance
+  ├── /dev/nvme0n1  – Root (OS, binaries)    gp3 / 20-50 GiB
+  ├── /dev/nvme1n1  – App data              gp3 with tuned IOPS
+  └── /dev/nvme2n1  – DB data/log           io2 if high durability needed
+```
+
+Separating concerns lets you:
+- Snapshot the root volume for AMI creation without capturing stateful data
+- Apply different snapshot retention policies per tier
+- Perform data volume replacement without touching the OS disk
+
+### AMI Baking with EBS
+
+Immutable deployment pattern:
+
+1. Build AMI from a clean base (installs baked in)
+2. Use AMI as the "golden image" for Auto Scaling group
+3. Data volumes attach post-launch from DLM-managed snapshots
+4. On replacement, new instance mounts restored snapshot
+
+This decouples code deployments from data volumes and enables fast replacement of failed instances.
+
+---
+
+## Cost Optimisation
+
+| Lever | Action |
+|---|---|
+| Migrate gp2 → gp3 | Typically 20% cheaper; tune IOPS/throughput separately |
+| Right-size IOPS | `gp3` allows lowering provisioned IOPS if metrics show headroom |
+| Delete orphaned volumes | Use Config rule `ec2-volume-in-use-check` to flag unattached volumes |
+| Archive cold snapshots | Move old snapshots to EBS Snapshot Archive (75% cheaper storage, 24–72h restore) |
+| st1 for analytics | Sequential-read workloads on st1 are ~80% cheaper than gp3 at the same size |
+
+---
+
+## Production Checklist
+
+Before submitting a storage design for production:
+
+1. All volumes encrypted (default account-level encryption enabled)
+2. `gp3` selected unless profile justifies `io2`/HDD alternatives
+3. Root and data volumes separated
+4. DLM lifecycle policy active with tested retention count
+5. Cross-region snapshot copy in place for DR requirements
+6. `VolumeQueueLength` CloudWatch alarm active per critical volume
+7. `BurstBalance` alarm for any gp2/st1/sc1 volumes still in use
+8. IAM deny policy blocking unencrypted volume creation
+9. Volumes tagged with owner, environment, and data classification
+10. Restore procedure documented and tested within the last 90 days
+
+---
+
+<Quiz
+  question="You have a PostgreSQL database experiencing high IOWait. You're currently running on a gp3 volume at 3,000 IOPS. What is the most targeted first response?"
+  options={[
+    { label: "Migrate the volume to HDD st1 for higher throughput" },
+    { label: "Increase gp3 provisioned IOPS up to the workload ceiling, then re-measure", correct: true },
+    { label: "Switch the instance to use instance store NVMe" },
+    { label: "Enable Multi-Attach on the gp3 volume" },
+  ]}
+  explanation="On gp3, IOPS is independently configurable up to 16,000. Before changing volume type, increase IOPS on the existing gp3 volume and measure again. Multi-Attach isn't supported on gp3, and st1 is lower IOPS. Instance store would lose data durability."
+/>
+
+<KeyPoints>
+  - Instance store is physically local and ephemeral; EBS is network-attached and persistent
+  - `gp3` decouples size from IOPS/throughput unlike `gp2` — almost always the better default
+  - `io2 Block Express` reaches 256,000 IOPS with 99.999% durability for mission-critical databases
+  - Nitro instances expose EBS volumes as NVMe devices; use `lsblk` not the API device name
+  - Always use UUID in `/etc/fstab` to avoid device-path shuffling across reboots
+  - EBS volumes can be resized online; the filesystem requires a separate `xfs_growfs` or `resize2fs` step
+  - Snapshots are incremental; pair them with DLM policies and periodic restore drills
+  - Enable account-level default encryption and use IAM deny policies to block unencrypted volumes
+  - Monitor `VolumeQueueLength` — sustained values above 1 on SSD indicate IO saturation
+  - Migrate from gp2 to gp3 to cut costs and gain independent IOPS/throughput control
+</KeyPoints>

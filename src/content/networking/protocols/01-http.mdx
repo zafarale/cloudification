@@ -1,0 +1,51 @@
+---
+title: "HTTP Fundamentals"
+description: "The protocol that powers the web"
+order: 1
+duration: 10
+tags: ["http", "web", "protocols"]
+---
+
+HTTP (Hypertext Transfer Protocol) is the foundation of data communication on the web. Every time you load a webpage, make an API call, or submit a form, HTTP is at work.
+
+## Request-Response Model
+
+HTTP follows a simple request-response pattern:
+
+1. **Client** sends a request to the server
+2. **Server** processes the request
+3. **Server** sends back a response
+
+```
+Client                    Server
+  |                          |
+  |-------- Request -------->|
+  |                          |
+  |<------- Response --------|
+  |                          |
+```
+
+## HTTP Methods
+
+- **GET** — Retrieve data (should be idempotent)
+- **POST** — Create new resources
+- **PUT** — Update/replace existing resources
+- **PATCH** — Partial update
+- **DELETE** — Remove resources
+
+## Status Codes
+
+| Range | Category |
+|-------|----------|
+| 1xx | Informational |
+| 2xx | Success (200 OK, 201 Created) |
+| 3xx | Redirection (301, 302, 304) |
+| 4xx | Client errors (400, 401, 404) |
+| 5xx | Server errors (500, 502, 503) |
+
+## HTTP/2 and HTTP/3
+
+Modern HTTP versions introduce significant improvements:
+
+- **HTTP/2** — Multiplexing, header compression, server push
+- **HTTP/3** — Built on QUIC (UDP-based), reduced latency

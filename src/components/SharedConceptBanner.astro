@@ -1,0 +1,36 @@
+---
+interface Concept {
+  title: string;
+  href: string;
+}
+
+interface Props {
+  concepts: Concept[];
+  relatedTrack: string;  // e.g. "Rust", "Azure"
+}
+
+const { concepts, relatedTrack } = Astro.props;
+---
+
+{concepts.length > 0 && (
+  <div class="mb-8 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-4">
+    <p class="text-xs font-semibold uppercase tracking-widest text-yellow-500 mb-2">
+      🔗 Shared Concept
+    </p>
+    <p class="text-sm text-gray-400">
+      This lesson builds on{' '}
+      {concepts.map((concept, index) => (
+        <>
+          <a
+            href={concept.href}
+            class="text-yellow-400 underline underline-offset-2 hover:text-yellow-300 transition-colors"
+          >
+            {concept.title}
+          </a>
+          {index < concepts.length - 1 && ', '}
+        </>
+      ))}
+      {' '}— a concept also relevant to {relatedTrack}.
+    </p>
+  </div>
+)}
