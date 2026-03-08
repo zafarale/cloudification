@@ -1,17 +1,134 @@
 ---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import FeatureCard from "../components/FeatureCard.astro";
+import { getCollection } from "astro:content";
 
+const [cloud, programming, networking, cicd, data] = await Promise.all([
+  getCollection("cloud"),
+  getCollection("programming"),
+  getCollection("networking"),
+  getCollection("cicd"),
+  getCollection("data"),
+]);
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout
+  title="Acert"
+  description="Structured learning paths for developers. Master cloud, programming, networking, data, and CI/CD with real, exam-ready content."
+  keywords={[
+    "developer learning",
+    "cloud tutorials",
+    "AWS",
+    "Azure",
+    "programming",
+    "networking",
+    "CI/CD",
+    "data engineering",
+    "certification prep",
+  ]}
+>
+  <!-- Hero -->
+  <section class="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
+    <p class="text-xs font-mono uppercase tracking-widest text-gray-500 mb-4">
+      Structured learning paths
+    </p>
+    <h1 class="text-4xl sm:text-5xl font-bold tracking-tight mb-5">
+      Everything a developer needs.<br />
+      <span class="text-gray-500">Nothing they don't.</span>
+    </h1>
+    <p class="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
+      Five interconnected tracks — cloud, programming, networking, data, and
+      CI/CD. Each path is complete on its own; together they cover the full
+      stack.
+    </p>
+  </section>
+
+  <!-- Path cards -->
+  <section
+    class="max-w-6xl mx-auto px-6 pb-24 flex flex-wrap justify-center gap-6"
+  >
+    <FeatureCard
+      title="Cloud"
+      description="AWS and Azure from first principles. EC2, S3, Lambda, VPCs, Azure Functions, AKS — build and scale real infrastructure."
+      href="/cloud"
+      color="blue"
+      icon="mdi:cloud-outline"
+      tags={[
+        { 
+          iconDay: "skill-icons:aws-dark", 
+          iconNight: "skill-icons:aws-light" 
+        },
+        {
+          iconDay: "skill-icons:azure-dark",
+          iconNight: "skill-icons:azure-light",
+        },
+        { 
+          iconDay: "skill-icons:gcp-dark", 
+          iconNight: "skill-icons:gcp-light" 
+        },
+      ]}
+      lessonCount={cloud.length}
+      ctaText="Explore Cloud"
+    />
+
+    <FeatureCard
+      title="Programming"
+      description="Java and Rust — enterprise OOP meets systems programming with memory safety. From JVM internals to zero-cost abstractions."
+      href="/programming"
+      icon="mdi:code-braces"
+      color="orange"
+      tags={[
+        {
+          iconDay: "skill-icons:java-dark",
+          iconNight: "skill-icons:java-light",
+        },
+        {
+          icon: "skill-icons:rust"
+        },
+      ]}
+      lessonCount={programming.length}
+      ctaText="Explore Programming"
+    />
+
+    <FeatureCard
+      title="Networking"
+      description="How computers communicate. TCP/IP, HTTP, DNS, TLS, firewalls — understand the network stack from packets to protocols."
+      href="/networking"
+      icon="mdi:network-outline"
+      color="green"
+      tags={[
+        {
+          icon: "mdi:protocol",
+        }
+      ]}
+      lessonCount={networking.length}
+      ctaText="Explore Networking"
+    />
+
+    <FeatureCard
+      title="Data"
+      description="SQL, NoSQL, and data warehousing. PostgreSQL, MongoDB, Redis, Snowflake — pick the right store for the right problem."
+      href="/data"
+      icon="mdi:database-outline"
+      color="cyan"
+      tags={[
+        { icon: "mdi:sql-query"}
+      ]}
+      lessonCount={data.length}
+      ctaText="Explore Data"
+    />
+
+    <FeatureCard
+      title="CI/CD"
+      description="Git, GitHub Actions, pipelines, and deployment automation. The foundation every path depends on."
+      href="/cicd"
+      icon="mdi:pipe"
+      color="purple"
+      tags={[
+        { icon: "skill-icons:git" }
+      ]}
+      lessonCount={cicd.length}
+      ctaText="Explore CI/CD"
+    />
+  </section>
+</BaseLayout>

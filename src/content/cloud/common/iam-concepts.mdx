@@ -4,7 +4,7 @@ description: "Identity and Access Management fundamentals that apply across AWS 
 order: 1
 duration: 22
 tags: ["iam", "security", "fundamentals"]
-sharedWith: ["aws", "azure"]
+sharedWith: ["aws", "azure", "gcp"]
 ---
 import { Icon } from 'astro-icon/components';
 import Callout from '../../../components/mdx/Callout.astro';
@@ -12,19 +12,15 @@ import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 import Quiz from '../../../components/mdx/Quiz.astro';
 import CodeComparison from '../../../components/mdx/CodeComparison.astro';
 
-# IAM Concepts 
-
 Identity and Access Management (IAM) is the foundation of cloud security. Every action in a cloud platform — creating a server, reading a file, sending a message — is authorized through IAM. Getting it right is non-negotiable.
 
-## What You Will Master
-
-By the end of this lesson, you should be able to:
-
-- Model identities for humans and workloads as separate categories
-- Design least-privilege access boundaries by role and scope
-- Trace the policy evaluation path when access is unexpectedly denied or allowed
-- Write well-scoped IAM policies rather than using overly broad permissions
-- Identify the most dangerous IAM anti-patterns and explain why they fail
+<KeyPoints>
+- How identities for humans and workloads differ — and why that distinction matters
+- How to design least-privilege access boundaries by role and scope
+- How to trace the policy evaluation path when access is unexpectedly denied or allowed
+- How to write well-scoped IAM policies instead of overly broad permissions
+- The most dangerous IAM anti-patterns and why they fail
+</KeyPoints>
 
 ---
 
@@ -36,21 +32,24 @@ IAM lets you define precisely **who** can do **what** to **which resources** und
 
 ```mermaid
 flowchart TD
+    accTitle: The Core Problem IAM Solves
+    accDescr: Flowchart (td) showing API Request Model, user / service / app, read / write / delete
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
     linkStyle default stroke-width:2.5px
 
     subgraph Request["API Request Model"]
-        Who["👤 Who?<br/>Identity<br/>(user / service / app)"]:::step
-        What["🔑 Can do what?<br/>Permission<br/>(read / write / delete)"]:::step
-        Where["📦 To what?<br/>Resource<br/>(bucket / VM / database)"]:::step
-        When["⏱ When?<br/>Condition<br/>(MFA / IP / time / tag)"]:::step
+        Who["fa:fa-user Who?<br/>Identity<br/>(user / service / app)"]:::step
+        What["fa:fa-key Can do what?<br/>Permission<br/>(read / write / delete)"]:::step
+        Where["fa:fa-box To what?<br/>Resource<br/>(bucket / VM / database)"]:::step
+        When["fa:fa-clock When?<br/>Condition<br/>(MFA / IP / time / tag)"]:::step
     end
 
-    Who --> What --> Where --> When --> Decision{"Evaluation"}
-    Decision -->|"Allow matches, no deny"| Allow["✅ Allowed"]:::ok
-    Decision -->|"Deny or no allow"| Deny["❌ Denied"]:::fail
+    Who --> What --> Where --> When --> Decision{"Evaluation"}:::decesion
+    Decision -->|"Allow matches, no deny"| Allow["fa:fa-check Allowed"]:::ok
+    Decision -->|"Deny or no allow"| Deny["fa:fa-xmark Denied"]:::fail
 ```
 
 ---
@@ -61,18 +60,20 @@ An **identity** is anything that can be authenticated and authorized. Cloud plat
 
 ```mermaid
 flowchart TD
+    accTitle: Identity Types
+    accDescr: Flowchart (td) showing Human Identities, User Individual person Logs in interactively, Group Collection of users Shared permissions
     classDef step    fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef machine fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     linkStyle default stroke-width:2.5px
 
     subgraph Human["Human Identities"]
-        User["👤 User<br/>Individual person<br/>Logs in interactively"]:::step
-        Group["👥 Group<br/>Collection of users<br/>Shared permissions"]:::step
+        User["fa:fa-user User<br/>Individual person<br/>Logs in interactively"]:::step
+        Group["fa:fa-users Group<br/>Collection of users<br/>Shared permissions"]:::step
     end
 
     subgraph Machine["Machine / Workload Identities"]
-        SA["🤖 Service Account<br/>Managed Identity<br/>No stored password"]:::machine
-        Role["🎭 Role<br/>Assumable identity<br/>Time-limited credentials"]:::machine
+        SA["fa:fa-robot Service Account<br/>Managed Identity<br/>No stored password"]:::machine
+        Role["fa:fa-user-tag Role<br/>Assumable identity<br/>Time-limited credentials"]:::machine
     end
 
     User -->|"member of"| Group
@@ -88,16 +89,22 @@ flowchart TD
 | Assumable role | IAM Role (AssumeRole) | Entra Service Principal | Cross-account, CI systems |
 
 <Callout type="tip" title="Prefer Managed Identities for All Workloads">
-Never hardcode a user's access key or password in application code, a container image, or a CI configuration. Use managed/service identities — they authenticate automatically without storing credentials anywhere.
+Never hardcode a user's access key or password in application code, a container image, or a CI configuration. 
+Use managed/service identities — they authenticate automatically without storing credentials anywhere.
 </Callout>
 
 ---
 
 ## Policies and Permissions
 
-A **permission** is a single allowed (or denied) action: `s3:GetObject`, `Microsoft.Compute/virtualMachines/start/action`.
+A **permission** is a single allowed (or denied) action: 
+- `s3:GetObject`, 
+- `Microsoft.Compute/virtualMachines/start/action`.
 
-A **policy** is a structured document that bundles permissions together and specifies who they apply to, on what resources, and under what conditions.
+A **policy** is a structured document that bundles permissions together and specifies;
+- who they apply to, 
+- on what resources, and 
+- under what conditions.
 
 ### AWS IAM Policy structure
 
@@ -153,6 +160,8 @@ Every identity — human or machine — should have only the permissions it actu
 
 ```mermaid
 flowchart LR
+    accTitle: The Principle of Least Privilege
+    accDescr: Flowchart (lr) showing What does this identity ACTUALLY do, Minimum permissions for that task, Smallest resource scope needed
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     linkStyle default stroke-width:2.5px
@@ -189,6 +198,8 @@ When you debug a permission error, follow this evaluation sequence:
 
 ```mermaid
 flowchart TD
+    accTitle: Access Evaluation — How Cloud IAM Decides
+    accDescr: Flowchart (td) showing API Request, 1 Identify calling identity, 2 Explicit DENY policy match
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
@@ -201,8 +212,8 @@ flowchart TD
     Allow{"3 Explicit ALLOW<br/>policy match?"}:::dec
     Scope{"4 Request within<br/>policy scope?"}:::dec
     Conditions{"5 All conditions<br/>pass?"}:::dec
-    Granted["✅ Access Granted"]:::ok
-    Denied["❌ Access Denied"]:::fail
+    Granted["fa:fa-check Access Granted"]:::ok
+    Denied["fa:fa-xmark Access Denied"]:::fail
 
     Req --> Identity --> Deny
     Deny -->|"Yes — explicit deny"| Denied
@@ -244,15 +255,17 @@ MFA requires a second factor beyond a password — typically a time-based one-ti
 
 ```mermaid
 flowchart LR
+    accTitle: Multi-Factor Authentication (MFA)
+    accDescr: Flowchart (lr) showing Username Password, Second Factor TOTP code / hardware key, Authenticated
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
     linkStyle default stroke-width:2.5px
 
-    Login["🔑 Username + Password"]:::step
-    MFA["📱 Second Factor<br/>TOTP code / hardware key"]:::step
-    Access["✅ Authenticated"]:::ok
-    Fail["❌ Rejected"]:::fail
+    Login["fa:fa-key Username + Password"]:::step
+    MFA["fa:fa-mobile Second Factor<br/>TOTP code / hardware key"]:::step
+    Access["fa:fa-check Authenticated"]:::ok
+    Fail["fa:fa-xmark Rejected"]:::fail
 
     Login -->|"Credentials valid"| MFA
     Login -->|"Wrong credentials"| Fail
@@ -354,6 +367,8 @@ How IAM fits into a real cloud deployment — a developer authenticates through 
 
 ```mermaid
 architecture-beta
+    accTitle: IAM Architecture Overview
+    accDescr: Architecture diagram showing cloud, Cloud Account, internet
   group account(cloud)[Cloud Account]
 
   service dev(internet)[Developer]

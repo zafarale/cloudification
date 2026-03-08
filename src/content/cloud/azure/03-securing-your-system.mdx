@@ -35,15 +35,21 @@ The security-foundations lesson defines **least privilege** as the principle. Az
 
 ```mermaid
 flowchart TD
-    MG["Management Group\nWidest scope\nInherits to all below"]
-    SUB["Subscription\nInherits from MG"]
-    RG["Resource Group\nInherits from Subscription"]
-    RES["Resource\nMost granular"]
+    accTitle: RBAC Scope Hierarchy
+    accDescr: Flowchart (td) showing Management Group Widest scope Inherits to all below, Subscription Inherits from MG, Resource Group Inherits from Subscription
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    ROLE["Role Assignment\n= Identity + Role Definition + Scope"]
+    MG["Management Group<br/>Widest scope<br/>Inherits to all below"]:::step
+    SUB["Subscription<br/>Inherits from MG"]:::step
+    RG["Resource Group<br/>Inherits from Subscription"]:::step
+    RES["Resource<br/>Most granular"]:::ok
+
+    ROLE["Role Assignment<br/>= Identity + Role Definition + Scope"]:::ok
 
     MG --> SUB --> RG --> RES
-    ROLE -- "Applied at any level\nInherits downward" --> MG
+    ROLE -- "Applied at any level<br/>Inherits downward" --> MG
 ```
 
 **Built-in roles — the ones you'll use most often:**
@@ -64,12 +70,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    REQ["Access request"]
-    ENTRA["Authenticated by Entra ID\n(AuthN complete)"]
-    DENY_ASSIGN{"Any Deny\nAssignment?"}
-    ROLE_CHECK{"Role assignment grants\nthis action at this scope?"}
-    ALLOW["✅ Allow"]
-    DENY["❌ Deny (Access Denied)"]
+    accTitle: RBAC Evaluation Flow
+    accDescr: Flowchart (td) showing Access request, AuthN complete, Any Deny Assignment
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REQ["Access request"]:::step
+    ENTRA["Authenticated by Entra ID<br/>(AuthN complete)"]:::step
+    DENY_ASSIGN{"Any Deny<br/>Assignment?"}:::decesion
+    ROLE_CHECK{"Role assignment grants<br/>this action at this scope?"}:::decesion
+    ALLOW["fa:fa-check Allow"]:::ok
+    DENY["fa:fa-xmark Deny (Access Denied)"]:::fail
 
     REQ --> ENTRA
     ENTRA --> DENY_ASSIGN
@@ -91,13 +105,19 @@ Azure Managed Identities give every Azure resource a service principal in Entra 
 
 ```mermaid
 flowchart TD
-    VM["VM / Function App / Container App"]
-    ENTRA_ID["Entra ID\n(Managed Identity\nService Principal)"]
-    RBAC_GRANT["RBAC Role Assignment\non target resource"]
-    TARGET["Key Vault / Storage / SQL\n(target resource)"]
-    TOKEN["Access token\n(short-lived, auto-renewed)"]
+    accTitle: Managed Identities: Eliminating Credentials from Services
+    accDescr: Flowchart (td) showing VM / Function App / Container App, Managed Identity Service Principal, RBAC Role Assignment on target resource
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    VM -- "Requests token via\nIMDS endpoint" --> ENTRA_ID
+    VM["VM / Function App / Container App"]:::step
+    ENTRA_ID["Entra ID<br/>(Managed Identity<br/>Service Principal)"]:::step
+    RBAC_GRANT["RBAC Role Assignment<br/>on target resource"]:::ok
+    TARGET["Key Vault / Storage / SQL<br/>(target resource)"]:::ok
+    TOKEN["Access token<br/>(short-lived, auto-renewed)"]:::ok
+
+    VM -- "Requests token via<br/>IMDS endpoint" --> ENTRA_ID
     ENTRA_ID -- "Validates identity" --> TOKEN
     TOKEN --> VM
     VM -- "Presents token" --> TARGET
@@ -129,13 +149,21 @@ The security-foundations principle: **default-deny segmentation with explicit al
 
 ```mermaid
 flowchart TD
-    PACKET["Inbound packet arrives"]
-    RULES["NSG rules evaluated\nin priority order (lower # = higher priority)"]
-    R100{"Rule 100:\nAllow HTTPS 443\nfrom specific source?"}
-    R200{"Rule 200:\nAllow specific\napplication port?"}
-    R65500{"Rule 65500:\nDeny All\n(default rule, always present)"}
-    ALLOW["✅ Allow and stop evaluating"]
-    DENY_DEF["❌ Deny (default)"]
+    accTitle: NSG Priority Evaluation
+    accDescr: Flowchart (td) showing Inbound packet arrives, lower higher priority, Rule 100: Allow HTTPS 443 from specific source
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    PACKET["Inbound packet arrives"]:::step
+    RULES["NSG rules evaluated<br/>in priority order (lower # = higher priority)"]:::step
+    R100{"Rule 100:<br/>Allow HTTPS 443<br/>from specific source?"}:::decesion
+    R200{"Rule 200:<br/>Allow specific<br/>application port?"}:::decesion
+    R65500{"Rule 65500:<br/>Deny All<br/>(default rule, always present)"}:::decesion
+    ALLOW["fa:fa-check Allow and stop evaluating"]:::ok
+    DENY_DEF["fa:fa-xmark Deny (default)"]:::fail
 
     PACKET --> RULES
     RULES --> R100
@@ -182,20 +210,27 @@ Apply NSGs at both the **subnet level** (broad tier enforcement) and the **NIC l
 
 ```mermaid
 flowchart TD
-    IGW["Azure Internet\n(public IPs assigned to LB)"]
-    NAT_GW["NAT Gateway\n(in public subnet)"]
+    accTitle: VNet Three-Tier Design
+    accDescr: Flowchart (td) showing public IPs assigned to LB, in public subnet, Public Subnet 10.0.1.0/24 Routes: 0.0.0.0/0 Internet
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    subgraph PUBLIC["Public Subnet 10.0.1.0/24\nRoutes: 0.0.0.0/0 → Internet"]
-        LB["Application Gateway\nor Load Balancer (public)"]
+    IGW["Azure Internet<br/>(public IPs assigned to LB)"]:::step
+    NAT_GW["NAT Gateway<br/>(in public subnet)"]:::step
+
+    subgraph PUBLIC["Public Subnet 10.0.1.0/24<br/>Routes: 0.0.0.0/0 → Internet"]
+        LB["Application Gateway<br/>or Load Balancer (public)"]:::ok
     end
 
-    subgraph APP["Private App Subnet 10.0.2.0/24\nRoutes: 0.0.0.0/0 → NAT GW"]
-        VMSS["VMSS / Container Apps\nNo public IP"]
+    subgraph APP["Private App Subnet 10.0.2.0/24<br/>Routes: 0.0.0.0/0 → NAT GW"]
+        VMSS["VMSS / Container Apps<br/>No public IP"]:::ok
     end
 
-    subgraph DATA["Private Data Subnet 10.0.3.0/24\nNo default route (isolated)"]
-        SQL["Azure SQL\nor PostgreSQL Flexible"]
-        KV["Key Vault\n(Private Endpoint)"]
+    subgraph DATA["Private Data Subnet 10.0.3.0/24<br/>No default route (isolated)"]
+        SQL["Azure SQL<br/>or PostgreSQL Flexible"]:::fail
+        KV["Key Vault<br/>(Private Endpoint)"]:::fail
     end
 
     IGW --> LB
@@ -214,14 +249,21 @@ The security principle: **never store secrets in code, config, or environment va
 
 ```mermaid
 flowchart TD
-    APP["Application\n(VM, Function, Container)"]
-    MI["Managed Identity\n(no credentials required)"]
-    KV["Azure Key Vault"]
-    AUDIT["Key Vault audit log\n→ Log Analytics\n(every get/set/delete logged)"]
+    accTitle: Key Vault: Secrets, Keys, and Certificates
+    accDescr: Flowchart (td) showing VM, Function, Container, no credentials required, Azure Key Vault
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    SECRET["Secret: DB password\nConnection string"]
-    KEY["Key: CMK for\nStorage/Disk encryption"]
-    CERT["Certificate:\nTLS cert lifecycle"]
+    APP["Application<br/>(VM, Function, Container)"]:::step
+    MI["Managed Identity<br/>(no credentials required)"]:::step
+    KV["Azure Key Vault"]:::ok
+    AUDIT["Key Vault audit log<br/>→ Log Analytics<br/>(every get/set/delete logged)"]:::ok
+
+    SECRET["Secret: DB password<br/>Connection string"]:::fail
+    KEY["Key: CMK for<br/>Storage/Disk encryption"]:::fail
+    CERT["Certificate:<br/>TLS cert lifecycle"]:::ok
 
     APP -- "Authenticates via" --> MI
     MI -- "RBAC: Key Vault Secrets User" --> KV
@@ -257,12 +299,19 @@ The security principle: **every privileged action must be traceable and anomalie
 
 ```mermaid
 flowchart TD
-    EVENTS["Azure Activity Log\n(every ARM operation: who, what, when, status)"]
-    DIAG["Diagnostic Settings\n(resource-level logs: NSG flows, Key Vault access, etc.)"]
-    LAW["Log Analytics Workspace\nCentralised log store"]
-    SENTINEL["Microsoft Sentinel\n(SIEM/SOAR — correlates across all logs)"]
-    DEFENDER["Defender for Cloud\nSecurity posture + threat alerts"]
-    ALERTS["Azure Monitor Alerts\n(metric or log-based alarms → Action Groups)"]
+    accTitle: Azure Monitor + Defender for Cloud: Traceability
+    accDescr: Flowchart (td) showing every ARM operation: who, what, when, status, resource-level logs: NSG flows, Key Vault access, etc., Log Analytics Workspace Centralised log store
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    EVENTS["Azure Activity Log<br/>(every ARM operation: who, what, when, status)"]:::step
+    DIAG["Diagnostic Settings<br/>(resource-level logs: NSG flows, Key Vault access, etc.)"]:::step
+    LAW["Log Analytics Workspace<br/>Centralised log store"]:::ok
+    SENTINEL["Microsoft Sentinel<br/>(SIEM/SOAR — correlates across all logs)"]:::ok
+    DEFENDER["Defender for Cloud<br/>Security posture + threat alerts"]:::ok
+    ALERTS["Azure Monitor Alerts<br/>(metric or log-based alarms → Action Groups)"]:::fail
 
     EVENTS --> LAW
     DIAG --> LAW

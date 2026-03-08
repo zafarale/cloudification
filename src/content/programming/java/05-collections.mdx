@@ -1,0 +1,199 @@
+---
+title: "Collections"
+description: "ArrayList, HashMap, and the Java Collections Framework for storing and working with data"
+order: 5
+duration: 9
+tags: ["collections", "arraylist", "hashmap", "data-structures"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+
+Java's Collections Framework gives you ready-made data structures for storing and manipulating groups of objects. Knowing which one to reach for is a core Java skill.
+
+<KeyPoints>
+- The Collections Framework hierarchy: Iterable → Collection → List/Set/Queue
+- When ArrayList beats LinkedList and vice versa
+- How HashMap achieves O(1) lookup with key-value pairs
+- Using the interface type (`List<>` not `ArrayList<>`) for flexible code
+</KeyPoints>
+
+---
+
+## Collections Framework Hierarchy
+
+```mermaid
+flowchart TD
+    accTitle: Java Collections Framework Hierarchy
+    accDescr: Inheritance hierarchy showing Iterable at the top, then Collection, branching into List, Set, and Queue interfaces. List is implemented by ArrayList and LinkedList. Set is implemented by HashSet and TreeSet (sorted). Queue is also implemented by LinkedList. The Map interface is separate, implemented by HashMap and TreeMap (sorted).
+    classDef iface fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef impl  fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef mapif fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ITER["fa:fa-circle-nodes Iterable"]:::iface
+    COLL["fa:fa-layer-group Collection"]:::iface
+    LIST["fa:fa-list List<br/>(ordered, indexed)"]:::iface
+    SET["fa:fa-asterisk Set<br/>(unique values)"]:::iface
+    QUEUE["fa:fa-arrow-right-arrow-left Queue<br/>(FIFO/LIFO)"]:::iface
+
+    MAP["fa:fa-table-columns Map<br/>(key → value)"]:::mapif
+
+    AL["fa:fa-database ArrayList"]:::impl
+    LL["fa:fa-link LinkedList"]:::impl
+    HS["fa:fa-circle HashSet"]:::impl
+    TS["fa:fa-sort TreeSet<br/>(sorted)"]:::impl
+    HM["fa:fa-table HashMap"]:::impl
+    TM["fa:fa-sort TreeMap<br/>(sorted keys)"]:::impl
+
+    ITER --> COLL
+    COLL --> LIST & SET & QUEUE
+    LIST --> AL & LL
+    SET --> HS & TS
+    QUEUE --> LL
+    MAP --> HM & TM
+```
+
+## Choosing the Right Collection
+
+```mermaid
+flowchart TD
+    accTitle: Decision Tree for Choosing the Right Java Collection
+    accDescr: Decision flowchart starting with whether you need key-value pairs. If yes, decide between HashMap (fast lookup) and TreeMap (sorted keys). If no, decide whether you need unique values, leading to HashSet or TreeSet. For lists, choose LinkedList for frequent middle insertions or ArrayList for index-based access.
+    classDef q   fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ans fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Q1{"fa:fa-circle-question Key → value<br/>lookup?"}:::q
+    Q2{"fa:fa-circle-question Need sorted<br/>keys?"}:::q
+    Q3{"fa:fa-circle-question Unique values<br/>only?"}:::q
+    Q4{"fa:fa-circle-question Need sorted<br/>order?"}:::q
+    Q5{"fa:fa-circle-question Frequent insert<br/>in middle?"}:::q
+
+    HASHMAP["fa:fa-table HashMap<br/>O(1) get/put"]:::ans
+    TREEMAP["fa:fa-sort TreeMap<br/>Sorted by key"]:::ans
+    HASHSET["fa:fa-circle HashSet<br/>O(1) uniqueness"]:::ans
+    TREESET["fa:fa-sort TreeSet<br/>Sorted unique values"]:::ans
+    LINKEDLIST["fa:fa-link LinkedList<br/>O(1) insert/remove"]:::ans
+    ARRAYLIST["fa:fa-list ArrayList<br/>O(1) index access"]:::ans
+
+    Q1 -->|"Yes"| Q2
+    Q1 -->|"No"| Q3
+    Q2 -->|"Yes"| TREEMAP
+    Q2 -->|"No"| HASHMAP
+    Q3 -->|"Yes"| Q4
+    Q3 -->|"No"| Q5
+    Q4 -->|"Yes"| TREESET
+    Q4 -->|"No"| HASHSET
+    Q5 -->|"Yes"| LINKEDLIST
+    Q5 -->|"No"| ARRAYLIST
+```
+
+## ArrayList
+
+A resizable array. Use it when you need an ordered list and fast index-based access.
+```java
+import java.util.ArrayList;
+
+ArrayList<String> languages = new ArrayList<>();
+
+languages.add("Java");
+languages.add("Rust");
+languages.add("Go");
+
+System.out.println(languages.get(0));   // Java
+System.out.println(languages.size());   // 3
+
+languages.remove("Go");
+
+for (String lang : languages) {
+    System.out.println(lang);
+}
+```
+
+## LinkedList
+
+Better than ArrayList when you frequently insert or remove from the middle of a list:
+```java
+import java.util.LinkedList;
+
+LinkedList<String> queue = new LinkedList<>();
+queue.addLast("first");
+queue.addLast("second");
+queue.removeFirst();  // acts like a queue
+```
+
+## HashMap
+
+Stores key-value pairs. Lookups, inserts, and deletes are O(1) on average.
+```java
+import java.util.HashMap;
+
+HashMap<String, Integer> scores = new HashMap<>();
+
+scores.put("Alice", 95);
+scores.put("Bob", 82);
+scores.put("Charlie", 91);
+
+System.out.println(scores.get("Alice"));       // 95
+System.out.println(scores.containsKey("Bob")); // true
+
+// Iterate over entries
+for (var entry : scores.entrySet()) {
+    System.out.println(entry.getKey() + ": " + entry.getValue());
+}
+```
+
+## HashSet
+
+A collection of unique values — duplicates are automatically ignored:
+```java
+import java.util.HashSet;
+
+HashSet<String> tags = new HashSet<>();
+tags.add("java");
+tags.add("backend");
+tags.add("java");  // ignored — already exists
+
+System.out.println(tags.size()); // 2
+```
+
+## The List Interface
+
+In practice, declare variables using the interface type rather than the implementation:
+```java
+// Prefer this
+List<String> items = new ArrayList<>();
+
+// Over this
+ArrayList<String> items = new ArrayList<>();
+```
+
+This makes it easy to swap implementations later without changing the rest of your code.
+
+## Useful Utility Methods
+```java
+import java.util.Collections;
+
+List<Integer> numbers = new ArrayList<>(List.of(3, 1, 4, 1, 5, 9));
+
+Collections.sort(numbers);           // [1, 1, 3, 4, 5, 9]
+Collections.reverse(numbers);        // [9, 5, 4, 3, 1, 1]
+int max = Collections.max(numbers);  // 9
+```
+
+<Callout type="tip" title="ArrayList vs LinkedList in practice">
+  ArrayList outperforms LinkedList for nearly all real-world workloads because CPU caches favour contiguous memory. Only use LinkedList when profiling confirms middle-insertion cost is the bottleneck.
+</Callout>
+
+<Quiz
+  question="Which collection should you use to store a set of usernames where each name must appear exactly once?"
+  options={[
+    { label: "ArrayList — because it preserves order" },
+    { label: "HashMap — because it has fast lookups" },
+    { label: "HashSet — because it automatically rejects duplicates", correct: true },
+    { label: "LinkedList — because it has fast insert" },
+  ]}
+  explanation="HashSet enforces uniqueness — adding a value that already exists is silently ignored. It also provides O(1) average time for add, contains, and remove operations."
+/>

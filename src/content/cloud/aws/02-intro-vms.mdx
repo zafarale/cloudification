@@ -56,19 +56,26 @@ m 7 g . 2 x l a r g e
 
 ```mermaid
 flowchart TD
-    START["What does your workload do?"]
+    accTitle: Choosing the Right Instance Type
+    accDescr: Flowchart (td) showing What does your workload do, Web / API server or general app, CPU-intensive: batch, encoding, scientific
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    WEBAPI{"Web / API server\nor general app?"}
-    CPUBOUND{"CPU-intensive:\nbatch, encoding,\nscientific?"}
-    MEMBOUND{"Memory-intensive:\nlarge in-memory\nDB or cache?"}
-    ML{"ML training\nor GPU workload?"}
-    BURST{"Low-traffic, dev/test,\nor variable load?"}
+    START["What does your workload do?"]:::step
 
-    GENERAL["m-family\nm7g, m7i, m7a"]
-    COMPUTE["c-family\nc7g, c7i, c7a"]
-    MEMORY["r-family\nr7g, r7i, r7a"]
-    GPU["p/g-family\np4d, g5, inf2"]
-    BURSTABLE["t-family\nt3, t4g (Graviton)"]
+    WEBAPI{"Web / API server<br/>or general app?"}:::decesion
+    CPUBOUND{"CPU-intensive:<br/>batch, encoding,<br/>scientific?"}:::decesion
+    MEMBOUND{"Memory-intensive:<br/>large in-memory<br/>DB or cache?"}:::decesion
+    ML{"ML training<br/>or GPU workload?"}:::decesion
+    BURST{"Low-traffic, dev/test,<br/>or variable load?"}:::decesion
+
+    GENERAL["m-family<br/>m7g, m7i, m7a"]:::ok
+    COMPUTE["c-family<br/>c7g, c7i, c7a"]:::ok
+    MEMORY["r-family<br/>r7g, r7i, r7a"]:::ok
+    GPU["p/g-family<br/>p4d, g5, inf2"]:::ok
+    BURSTABLE["t-family<br/>t3, t4g (Graviton)"]:::ok
 
     START --> WEBAPI & CPUBOUND & MEMBOUND & ML & BURST
     WEBAPI --> GENERAL
@@ -90,16 +97,23 @@ EC2 has three main pricing models. Choosing the right one is often the highest-i
 
 ```mermaid
 flowchart TD
-    WORKLOAD["What is the workload pattern?"]
+    accTitle: Pricing Models
+    accDescr: Flowchart (td) showing What is the workload pattern, Runs 24/7, always on, Can tolerate interruption
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    STEADY{"Runs 24/7,\nalways on?"}
-    FLEX{"Can tolerate\ninterruption?"}
-    SHORT{"Short-lived,\nunpredictable?"}
-    COMMIT{"Can commit\n1 or 3 years?"}
+    WORKLOAD["What is the workload pattern?"]:::step
 
-    ON_DEMAND["On-Demand\nPay per second\nNo commitment\nBaseline price"]
-    SPOT["Spot\n70–90% discount\nCan be interrupted\nwith 2-min notice"]
-    RESERVED["Reserved Instance\nor Savings Plan\n30–72% discount\n1yr or 3yr commit"]
+    STEADY{"Runs 24/7,<br/>always on?"}:::decesion
+    FLEX{"Can tolerate<br/>interruption?"}:::decesion
+    SHORT{"Short-lived,<br/>unpredictable?"}:::decesion
+    COMMIT{"Can commit<br/>1 or 3 years?"}:::decesion
+
+    ON_DEMAND["On-Demand<br/>Pay per second<br/>No commitment<br/>Baseline price"]:::ok
+    SPOT["Spot<br/>70–90% discount<br/>Can be interrupted<br/>with 2-min notice"]:::ok
+    RESERVED["Reserved Instance<br/>or Savings Plan<br/>30–72% discount<br/>1yr or 3yr commit"]:::ok
 
     WORKLOAD --> STEADY & FLEX & SHORT
     STEADY --> COMMIT
@@ -129,14 +143,16 @@ Understanding the lifecycle determines what you're billed for and when.
 
 ```mermaid
 flowchart TD
-    PENDING["Pending\nProvisioning resources\nNot billed"]
-    RUNNING["Running\n✅ Billed per second"]
-    STOPPING["Stopping\nShutting down OS"]
-    STOPPED["Stopped\nEBS volumes billed\nNo CPU/memory charge"]
-    HIBERNATE["Hibernating\nRAM saved to EBS\nFaster resume"]
-    TERMINATE["Shutting Down\nFinal state"]
-    TERMINATED["Terminated\n🗑 Not billed\nEBS deleted (default)"]
-    REBOOT["Reboot\nStays running, same host\nNo billing gap"]
+    accTitle: EC2 Instance Lifecycle
+    accDescr: Flowchart (td) showing Pending Provisioning resources Not billed, Running Billed per second, Stopping Shutting down OS
+    PENDING["Pending<br/>Provisioning resources<br/>Not billed"]
+    RUNNING["Running<br/>fa:fa-check Billed per second"]
+    STOPPING["Stopping<br/>Shutting down OS"]
+    STOPPED["Stopped<br/>EBS volumes billed<br/>No CPU/memory charge"]
+    HIBERNATE["Hibernating<br/>RAM saved to EBS<br/>Faster resume"]
+    TERMINATE["Shutting Down<br/>Final state"]
+    TERMINATED["Terminated<br/>fa:fa-trash Not billed<br/>EBS deleted (default)"]
+    REBOOT["Reboot<br/>Stays running, same host<br/>No billing gap"]
 
     PENDING --> RUNNING
     RUNNING --> STOPPING
@@ -164,13 +180,20 @@ EC2 instances have two storage options with very different characteristics:
 
 ```mermaid
 flowchart TD
-    STORAGE["EC2 Storage options"]
+    accTitle: Storage: EBS vs Instance Store
+    accDescr: Flowchart (td) showing EC2 Storage options, Elastic Block Store, Instance Store Physically attached NVMe Lost when stopped/terminated Highest IOPS, lowest latency
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    EBS["EBS (Elastic Block Store)\nNetwork-attached, persistent\nSurvives stop/terminate\nCan be snapshotted"]
-    IS["Instance Store\nPhysically attached NVMe\nLost when stopped/terminated\nHighest IOPS, lowest latency"]
+    STORAGE["EC2 Storage options"]:::step
 
-    EBS --> EBS_TYPES["Types:\ngp3 — general purpose SSD\nio2 — high-IOPS provisioned\nst1 — HDD throughput\nsc1 — cold HDD archival"]
-    IS --> IS_USE["Use for:\nTemporary buffers\nScratch / cache\nHadoop HDFS nodes\nDo NOT store data you need to keep"]
+    EBS["EBS (Elastic Block Store)<br/>Network-attached, persistent<br/>Survives stop/terminate<br/>Can be snapshotted"]:::ok
+    IS["Instance Store<br/>Physically attached NVMe<br/>Lost when stopped/terminated<br/>Highest IOPS, lowest latency"]:::fail
+
+    EBS --> EBS_TYPES["Types:<br/>gp3 — general purpose SSD<br/>io2 — high-IOPS provisioned<br/>st1 — HDD throughput<br/>sc1 — cold HDD archival"]:::ok
+    IS --> IS_USE["Use for:<br/>Temporary buffers<br/>Scratch / cache<br/>Hadoop HDFS nodes<br/>Do NOT store data you need to keep"]:::fail
 ```
 
 | | EBS | Instance Store |
@@ -192,14 +215,20 @@ When launching an EC2 instance, the critical network decisions are:
 
 ```mermaid
 flowchart TD
-    LAUNCH["Launch EC2 instance"]
+    accTitle: Launching an Instance: VPC and Security Group Placement
+    accDescr: Flowchart (td) showing Launch EC2 instance, which environment, public or private tier which AZ
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    VPC["Select VPC\n(which environment?)"]
-    SUBNET["Select Subnet\n(public or private tier?\nwhich AZ?)"]
-    SG["Assign Security Group\n(what can reach this instance?)"]
-    ROLE["Attach IAM Role\n(what can this instance do?)"]
-    KEY["Key pair / SSM\n(how will you connect?)"]
-    EBS_SIZE["Configure EBS\n(size, type, encryption)"]
+    LAUNCH["Launch EC2 instance"]:::step
+
+    VPC["Select VPC<br/>(which environment?)"]:::step
+    SUBNET["Select Subnet<br/>(public or private tier?<br/>which AZ?)"]:::step
+    SG["Assign Security Group<br/>(what can reach this instance?)"]:::step
+    ROLE["Attach IAM Role<br/>(what can this instance do?)"]:::step
+    KEY["Key pair / SSM<br/>(how will you connect?)"]:::step
+    EBS_SIZE["Configure EBS<br/>(size, type, encryption)"]:::ok
 
     LAUNCH --> VPC --> SUBNET --> SG --> ROLE --> KEY --> EBS_SIZE
 ```
@@ -227,11 +256,18 @@ For latency-sensitive or tightly-coupled workloads, EC2 placement groups control
 
 ```mermaid
 flowchart TD
-    PG["Placement Group Types"]
+    accTitle: Placement Groups
+    accDescr: Flowchart (td) showing Placement Group Types, Cluster All instances in same AZ same hardware rack Lowest latency Highest risk rack failure all down, Spread Each instance on different hardware rack Max 7 per AZ Highest isolation
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    CLUSTER["Cluster\nAll instances in same AZ\nsame hardware rack\nLowest latency\nHighest risk — rack failure = all down"]
-    SPREAD["Spread\nEach instance on\ndifferent hardware rack\nMax 7 per AZ\nHighest isolation"]
-    PARTITION["Partition\nGroups of instances\non separate racks\n(7 partitions/AZ)\nFor Kafka, Cassandra, HDFS"]
+    PG["Placement Group Types"]:::step
+
+    CLUSTER["Cluster<br/>All instances in same AZ<br/>same hardware rack<br/>Lowest latency<br/>Highest risk — rack failure = all down"]:::fail
+    SPREAD["Spread<br/>Each instance on<br/>different hardware rack<br/>Max 7 per AZ<br/>Highest isolation"]:::ok
+    PARTITION["Partition<br/>Groups of instances<br/>on separate racks<br/>(7 partitions/AZ)<br/>For Kafka, Cassandra, HDFS"]:::ok
 
     PG --> CLUSTER & SPREAD & PARTITION
 ```

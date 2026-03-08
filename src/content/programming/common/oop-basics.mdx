@@ -12,8 +12,7 @@ import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 import Quiz from '../../../components/mdx/Quiz.astro';
 import CodeTabs from '../../../components/mdx/CodeTabs.astro';
 import List from '../../../components/mdx/List.astro';
-
-# OOP Basics
+import { Icon } from 'astro-icon/components';
 
 Object-Oriented Programming (OOP) organizes code around **objects** — bundles of data and the functions that operate on that data. Instead of thinking about procedures that transform inputs to outputs, you think about entities that have state and behavior.
 
@@ -99,10 +98,10 @@ Encapsulation means hiding internal details and exposing only what's necessary. 
 
 | Modifier | Class | Package | Subclass | World |
 |----------|-------|---------|----------|-------|
-| `private` | ✓ | ✗ | ✗ | ✗ |
-| (default) | ✓ | ✓ | ✗ | ✗ |
-| `protected` | ✓ | ✓ | ✓ | ✗ |
-| `public` | ✓ | ✓ | ✓ | ✓ |
+| `private` | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> |
+| (default) | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> |
+| `protected` | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:close" class="inline w-4 h-4 align-middle text-red-500" /> |
+| `public` | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> | <Icon name="mdi:check" class="inline w-4 h-4 align-middle text-green-500" /> |
 
 **Rust** uses module-based privacy — everything is private by default, use `pub` to expose.
 
@@ -165,6 +164,25 @@ account.deposit(100.0);
 Inheritance lets one class derive from another, inheriting its fields and methods. It models "is-a" relationships.
 
 Java uses `extends` for inheritance. Rust deliberately doesn't support inheritance — use **composition** instead:
+
+```mermaid
+flowchart TD
+    accTitle: Class Inheritance Hierarchy
+    accDescr: Hierarchy diagram showing Animal as the superclass with name field and eat method. Cat and Dog extend Animal, inheriting eat and each adding their own method (meow and bark). GoldenRetriever extends Dog and adds a fetch method.
+    classDef base fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef sub  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef leaf fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ANIMAL["fa:fa-paw Animal<br/>name: String<br/>eat()"]:::base
+    DOG["fa:fa-dog Dog<br/>bark()"]:::sub
+    CAT["fa:fa-cat Cat<br/>meow()"]:::sub
+    GR["fa:fa-star GoldenRetriever<br/>fetch()"]:::leaf
+
+    ANIMAL -->|"extends"| DOG
+    ANIMAL -->|"extends"| CAT
+    DOG -->|"extends"| GR
+```
 
 <CodeTabs tabs={[
   {
@@ -242,6 +260,26 @@ Rust's lack of inheritance is intentional. Deep inheritance hierarchies are a co
 ## Polymorphism
 
 Polymorphism means "many forms" — the ability to treat different types uniformly through a common interface.
+
+```mermaid
+flowchart TD
+    accTitle: Polymorphism Runtime Dispatch
+    accDescr: Diagram showing a Shape variable calling area(). At runtime, the JVM inspects the actual object type and dispatches to either Circle's area implementation (pi times r squared) or Rectangle's area implementation (width times height) accordingly.
+    classDef ref  fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef q    fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef impl fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REF["fa:fa-code Shape s"]:::ref
+    CALL["fa:fa-circle-dot s.area()"]:::ref
+    RT{"fa:fa-circle-question Actual type<br/>at runtime?"}:::q
+    CI["fa:fa-circle Circle.area()<br/>π × r²"]:::impl
+    RE["fa:fa-square Rectangle.area()<br/>w × h"]:::impl
+
+    REF --> CALL --> RT
+    RT -->|"Circle"| CI
+    RT -->|"Rectangle"| RE
+```
 
 Java uses `interface` and abstract classes. Rust uses **traits**:
 

@@ -7,9 +7,9 @@ const { title = 'Key Takeaways' } = Astro.props;
 
 <div class="not-prose my-8 rounded-xl border border-purple-500/20 bg-purple-500/5 p-6">
   <p class="text-xs font-semibold uppercase tracking-widest text-purple-400 font-mono mb-4">
-    ✦ {title}
+    <span aria-hidden="true">✦ </span>{title}
   </p>
-  <ul class="space-y-2">
+  <ul class="space-y-2" role="list">
     <slot />
   </ul>
 </div>

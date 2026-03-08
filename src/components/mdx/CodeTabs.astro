@@ -40,11 +40,11 @@ const id = Math.random().toString(36).slice(2, 8);
 
 <div
   class="not-prose my-6 rounded-xl border border-white/10 overflow-hidden"
-  id={`tabs-${id}`}
+  data-tabs-wrapper={id}
 >
 
   <!-- Tab bar -->
-  <div class="flex border-b border-white/10 bg-white/[0.04] overflow-x-auto">
+  <div class="flex border-b border-white/10 bg-white/[0.04] overflow-x-auto" role="tablist" aria-label="Code examples">
     {tabs.map((tab, index) => {
       const defaults = ICON_DEFAULTS[tab.label];
       const resolvedIcon = tab.icon ?? defaults?.icon ?? null;
@@ -52,11 +52,17 @@ const id = Math.random().toString(36).slice(2, 8);
 
       return (
         <button
+          id={`tab-${id}-${index}`}
+          role="tab"
+          aria-selected={index === 0 ? 'true' : 'false'}
+          aria-controls={`panel-${id}-${index}`}
+          tabindex={index === 0 ? 0 : -1}
           data-tab={index}
           data-tabs-id={id}
           class:list={[
             'flex items-center gap-2 px-4 py-2.5 text-sm font-medium font-mono',
             'whitespace-nowrap border-b-2 transition-all duration-200 cursor-pointer',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400',
             index === 0
               ? 'border-blue-400 text-blue-400'
               : 'border-transparent text-gray-500 hover:text-gray-300 hover:bg-white/5',
@@ -66,9 +72,10 @@ const id = Math.random().toString(36).slice(2, 8);
             <Icon
               name={resolvedIcon}
               class:list={['w-4 h-4 shrink-0', defaults?.class ?? '']}
+              aria-hidden="true"
             />
           ) : resolvedEmoji ? (
-            <span class="text-sm leading-none">{resolvedEmoji}</span>
+            <span class="text-sm leading-none" aria-hidden="true">{resolvedEmoji}</span>
           ) : null}
           {tab.label}
         </button>
@@ -79,9 +86,13 @@ const id = Math.random().toString(36).slice(2, 8);
   <!-- Panels -->
   {tabs.map((tab, index) => (
     <div
+      id={`panel-${id}-${index}`}
+      role="tabpanel"
+      aria-labelledby={`tab-${id}-${index}`}
+      tabindex={index === 0 ? 0 : -1}
+      hidden={index !== 0}
       data-panel={index}
       data-tabs-id={id}
-      style={index !== 0 ? 'display:none' : ''}
     >
       <Code
         code={tab.code.trim()}
@@ -94,22 +105,42 @@ const id = Math.random().toString(36).slice(2, 8);
 </div>
 
 <script>
-  document.querySelectorAll('[data-tab]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const id = (btn as HTMLElement).dataset.tabsId;
-      const index = Number((btn as HTMLElement).dataset.tab);
-      const wrapper = document.getElementById(`tabs-${id}`);
-      if (!wrapper) return;
+  document.querySelectorAll('[data-tabs-wrapper]').forEach((wrapper) => {
+    const tabs = Array.from(wrapper.querySelectorAll('[role="tab"]'));
+    const panels = Array.from(wrapper.querySelectorAll('[role="tabpanel"]'));
 
-      wrapper.querySelectorAll('[data-tab]').forEach((b, i) => {
-        b.classList.toggle('text-blue-400', i === index);
-        b.classList.toggle('border-blue-400', i === index);
-        b.classList.toggle('text-gray-500', i !== index);
-        b.classList.toggle('border-transparent', i !== index);
+    function selectTab(index) {
+      tabs.forEach((tab, i) => {
+        const selected = i === index;
+        tab.setAttribute('aria-selected', String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        tab.classList.toggle('text-blue-400', selected);
+        tab.classList.toggle('border-blue-400', selected);
+        tab.classList.toggle('text-gray-500', !selected);
+        tab.classList.toggle('border-transparent', !selected);
       });
+      panels.forEach((panel, i) => {
+        if (i === index) {
+          panel.removeAttribute('hidden');
+        } else {
+          panel.setAttribute('hidden', '');
+        }
+      });
+    }
 
-      wrapper.querySelectorAll('[data-panel]').forEach((panel, i) => {
-        (panel as HTMLElement).style.display = i === index ? 'block' : 'none';
+    tabs.forEach((tab, i) => {
+      tab.addEventListener('click', () => selectTab(i));
+      tab.addEventListener('keydown', (e) => {
+        let next = -1;
+        if (e.key === 'ArrowRight')     next = (i + 1) % tabs.length;
+        else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+        else if (e.key === 'Home')      next = 0;
+        else if (e.key === 'End')       next = tabs.length - 1;
+        if (next >= 0) {
+          e.preventDefault();
+          selectTab(next);
+          tabs[next].focus();
+        }
       });
     });
   });

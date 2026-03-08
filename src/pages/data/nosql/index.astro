@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('data', ({ id }) => id.startsWith('nosql/'));
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/data/nosql/${lesson.id.replace('nosql/', '').replace(/\.mdx?$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout
+  title="NoSQL"
+  description="Document, key-value, graph, and columnar databases. When relational isn't the right tool."
+  keywords={['NoSQL tutorials', 'MongoDB', 'Redis', 'document database', 'key-value store', 'graph database', 'columnar database']}
+  certifications={['MongoDB Certified Developer', 'Redis Certified Developer', 'AWS Database Specialty']}
+>
+  <PageHeader
+    title="NoSQL"
+    description="Document, key-value, graph, and columnar databases. Work through lessons in order — each builds on the last."
+    icon="🍃"
+    backHref="/data"
+    backLabel="Back to Data"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="yellow" />
+</BaseLayout>

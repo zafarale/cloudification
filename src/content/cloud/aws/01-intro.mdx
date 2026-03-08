@@ -37,17 +37,23 @@ AWS infrastructure is organised in three layers: **Regions** → **Availability 
 
 ```mermaid
 flowchart TD
-    GLOBE["AWS Global Network"]
+    accTitle: AWS Global Infrastructure
+    accDescr: Flowchart (td) showing AWS Global Network, e.g. us-east-1, 13 data centres
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    GLOBE["AWS Global Network"]:::step
 
     subgraph REG["Region (e.g. us-east-1)"]
-        AZ1["Availability Zone A\n(1–3 data centres)"]
-        AZ2["Availability Zone B"]
-        AZ3["Availability Zone C"]
+        AZ1["Availability Zone A<br/>(1–3 data centres)"]:::ok
+        AZ2["Availability Zone B"]:::ok
+        AZ3["Availability Zone C"]:::ok
     end
 
     subgraph EDGE["Edge / Content Delivery"]
-        CF["CloudFront PoP\n(400+ locations)"]
-        SHIELD["AWS Shield\nDDoS scrubbing"]
+        CF["CloudFront PoP<br/>(400+ locations)"]:::ok
+        SHIELD["AWS Shield<br/>DDoS scrubbing"]:::ok
     end
 
     GLOBE --> REG
@@ -67,15 +73,23 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    START["Choosing a region"]
-    DATA{"Data sovereignty\nrequirement?"}
-    LATENCY{"Where are\nyour users?"}
-    SERVICES{"Does the region\nhave required services?"}
-    COST{"Cost difference\nacceptable?"}
-    REGION["Select region ✅"]
+    accTitle: Choosing a Region
+    accDescr: Flowchart (td) showing Choosing a region, Data sovereignty requirement, Where are your users
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    START["Choosing a region"]:::step
+    DATA{"Data sovereignty<br/>requirement?"}:::decesion
+    LATENCY{"Where are<br/>your users?"}:::decesion
+    SERVICES{"Does the region<br/>have required services?"}:::decesion
+    COST{"Cost difference<br/>acceptable?"}:::decesion
+    REGION["Select region fa:fa-check"]:::ok
 
     START --> DATA
-    DATA -- "Yes → must be in\nspecific country" --> SERVICES
+    DATA -- "Yes → must be in<br/>specific country" --> SERVICES
     DATA -- "No" --> LATENCY
     LATENCY --> SERVICES
     SERVICES -- "Yes" --> COST
@@ -95,21 +109,27 @@ An **AWS account** is the fundamental unit of isolation — billing, IAM, and re
 
 ```mermaid
 flowchart TD
-    ROOT["Management Account\n(billing, policy root)"]
+    accTitle: The AWS Account and Organisation Model
+    accDescr: Flowchart (td) showing billing, policy root, OU: Production, Account: prod-app
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ROOT["Management Account<br/>(billing, policy root)"]:::step
 
     subgraph OU_PROD["OU: Production"]
-        ACC_PROD_APP["Account: prod-app"]
-        ACC_PROD_DATA["Account: prod-data"]
+        ACC_PROD_APP["Account: prod-app"]:::ok
+        ACC_PROD_DATA["Account: prod-data"]:::ok
     end
 
     subgraph OU_DEV["OU: Development"]
-        ACC_DEV["Account: dev"]
-        ACC_STAGING["Account: staging"]
+        ACC_DEV["Account: dev"]:::ok
+        ACC_STAGING["Account: staging"]:::ok
     end
 
     subgraph OU_SHARED["OU: Shared Services"]
-        ACC_LOGGING["Account: logging"]
-        ACC_SECURITY["Account: security-tooling"]
+        ACC_LOGGING["Account: logging"]:::ok
+        ACC_SECURITY["Account: security-tooling"]:::ok
     end
 
     ROOT --> OU_PROD & OU_DEV & OU_SHARED
@@ -133,15 +153,21 @@ AWS groups its 200+ services into functional categories. These are the categorie
 
 ```mermaid
 flowchart TD
-    AWS["AWS Core Services"]
+    accTitle: Core Service Categories
+    accDescr: Flowchart (td) showing AWS Core Services, Compute EC2 Lambda ECS EKS Fargate, Storage S3 EBS EFS Glacier
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    COMPUTE["🖥 Compute\nEC2 · Lambda · ECS · EKS · Fargate"]
-    STORAGE["💾 Storage\nS3 · EBS · EFS · Glacier"]
-    DB["🗄 Databases\nRDS · DynamoDB · ElastiCache · Aurora"]
-    NET["🌐 Networking\nVPC · Route 53 · CloudFront · ALB/NLB"]
-    IAM_BOX["🔐 Security & IAM\nIAM · STS · KMS · Secrets Manager"]
-    OBS["📊 Observability\nCloudWatch · CloudTrail · X-Ray"]
-    INFRA["⚙ Infrastructure\nCloudFormation · CDK · Systems Manager"]
+    AWS["AWS Core Services"]:::step
+
+    COMPUTE["fa:fa-desktop Compute<br/>EC2 · Lambda · ECS · EKS · Fargate"]:::ok
+    STORAGE["fa:fa-floppy-disk Storage<br/>S3 · EBS · EFS · Glacier"]:::ok
+    DB["fa:fa-database Databases<br/>RDS · DynamoDB · ElastiCache · Aurora"]:::ok
+    NET["fa:fa-globe Networking<br/>VPC · Route 53 · CloudFront · ALB/NLB"]:::ok
+    IAM_BOX["fa:fa-lock Security & IAM<br/>IAM · STS · KMS · Secrets Manager"]:::ok
+    OBS["fa:fa-chart-bar Observability<br/>CloudWatch · CloudTrail · X-Ray"]:::ok
+    INFRA["fa:fa-gears Infrastructure<br/>CloudFormation · CDK · Systems Manager"]:::ok
 
     AWS --> COMPUTE & STORAGE & DB & NET & IAM_BOX & OBS & INFRA
 ```
@@ -168,14 +194,20 @@ The correct bootstrap sequence for every new AWS account:
 
 ```mermaid
 flowchart TD
-    ROOT["1. Log in as root"]
-    MFA["2. Enable MFA on root account"]
-    BILLING["3. Set billing alerts\n(Cost Explorer + Budgets)"]
-    ADMIN["4. Create admin IAM user\nor federated SSO access"]
-    SWITCH["5. Log out of root\nWork from IAM user/role only"]
-    GROUPS["6. Create IAM groups/roles\nper function (ReadOnly, Developer, Admin)"]
-    USERS["7. Create user accounts\nwith least-privilege roles"]
-    MFA2["8. Enforce MFA for all\nhuman users"]
+    accTitle: IAM Bootstrap: Your First Actions on a New Account
+    accDescr: Flowchart (td) showing 1. Log in as root, 2. Enable MFA on root account, Cost Explorer Budgets
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ROOT["1. Log in as root"]:::step
+    MFA["2. Enable MFA on root account"]:::step
+    BILLING["3. Set billing alerts<br/>(Cost Explorer + Budgets)"]:::step
+    ADMIN["4. Create admin IAM user<br/>or federated SSO access"]:::step
+    SWITCH["5. Log out of root<br/>Work from IAM user/role only"]:::step
+    GROUPS["6. Create IAM groups/roles<br/>per function (ReadOnly, Developer, Admin)"]:::step
+    USERS["7. Create user accounts<br/>with least-privilege roles"]:::step
+    MFA2["8. Enforce MFA for all<br/>human users"]:::ok
 
     ROOT --> MFA --> BILLING --> ADMIN --> SWITCH --> GROUPS --> USERS --> MFA2
 ```

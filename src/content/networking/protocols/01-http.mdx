@@ -1,51 +1,301 @@
 ---
 title: "HTTP Fundamentals"
-description: "The protocol that powers the web"
+description: "The protocol that powers the web — request/response model, methods, status codes, HTTP/1.1 vs HTTP/2 multiplexing, and how cloud API gateways and load balancers layer on top."
 order: 1
-duration: 10
-tags: ["http", "web", "protocols"]
+duration: 20
+tags: ["http", "web", "protocols", "http2", "api-gateway"]
 ---
 
-HTTP (Hypertext Transfer Protocol) is the foundation of data communication on the web. Every time you load a webpage, make an API call, or submit a form, HTTP is at work.
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
 
-## Request-Response Model
+**HTTP (Hypertext Transfer Protocol)** is the application-layer protocol that drives the web and virtually every REST API. Every microservice call, DNS-over-HTTPS query, and S3 presigned URL uses HTTP. Understanding it in detail — not just the basics — is what enables you to debug connection issues, tune performance, and design correct API contracts.
 
-HTTP follows a simple request-response pattern:
+<KeyPoints>
+- How HTTP request/response structure maps to real wire bytes
+- The difference between HTTP/1.1 head-of-line blocking and HTTP/2 multiplexing
+- When to use each HTTP method and what idempotency means in practice
+- How status codes communicate success, client error, and server error semantics
+- How cloud API gateways, load balancers, and CDNs sit in front of HTTP services
+- How connection keep-alive and pipelining affect performance
+</KeyPoints>
 
-1. **Client** sends a request to the server
-2. **Server** processes the request
-3. **Server** sends back a response
+---
+
+## Request–Response Model
+
+HTTP is a **stateless, text-based** application protocol. A client sends a request; the server returns a response. Each exchange is independent — no notion of ongoing session at the protocol level (cookies and JWTs add session state above HTTP).
+
+```mermaid
+sequenceDiagram
+    accTitle: Request–Response Model
+    accDescr: Sequence diagram showing Browser / curl, nginx / ALB, 3-way handshake
+    participant C as Client (Browser / curl)
+    participant S as Server (nginx / ALB)
+
+    C->>S: GET /api/users HTTP/1.1<br/>Host: api.example.com<br/>Authorization: Bearer eyJ...
+    Note over C,S: TCP connection established first (3-way handshake)
+    S-->>C: HTTP/1.1 200 OK<br/>Content-Type: application/json<br/>Content-Length: 247<br/><br/>{"users": [...]}
+```
+
+### Request Anatomy
 
 ```
-Client                    Server
-  |                          |
-  |-------- Request -------->|
-  |                          |
-  |<------- Response --------|
-  |                          |
+GET /api/users?page=2 HTTP/1.1       ← Request line: method + path + version
+Host: api.example.com                 ← Required header in HTTP/1.1
+Authorization: Bearer eyJhbGc...      ← Auth header
+Accept: application/json              ← Content negotiation
+Connection: keep-alive                ← Reuse TCP connection
+                                      ← Blank line separates headers from body
+                                      ← (GET has no body)
 ```
+
+### Response Anatomy
+
+```
+HTTP/1.1 200 OK                       ← Status line: version + code + reason
+Content-Type: application/json        ← Body format
+Content-Length: 247                   ← Exact byte count
+Cache-Control: no-cache               ← Caching directive
+X-Request-ID: a1b2c3d4               ← Correlation ID (custom header)
+                                      ← Blank line
+{"users": [...]}                      ← Response body
+```
+
+---
 
 ## HTTP Methods
 
-- **GET** — Retrieve data (should be idempotent)
-- **POST** — Create new resources
-- **PUT** — Update/replace existing resources
-- **PATCH** — Partial update
-- **DELETE** — Remove resources
+Methods describe the **intent** of the request. The RFC defines semantics that clients, proxies, and caches rely on.
+
+```mermaid
+flowchart TD
+    accTitle: HTTP Methods
+    accDescr: Flowchart (td) showing typically
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REQ["Incoming Request"]:::step
+    M{"Method?"}:::decesion
+    GET["GET\<br/>Retrieve resource\<br/>Idempotent, safe\<br/>Cacheable"]:::ok
+    POST["POST\<br/>Create new resource\<br/>Not idempotent"]:::step
+    PUT["PUT\<br/>Replace entire resource\<br/>Idempotent"]:::step
+    PATCH["PATCH\<br/>Partial update\<br/>Not idempotent (typically)"]:::step
+    DELETE["DELETE\<br/>Remove resource\<br/>Idempotent"]:::fail
+    HEAD["HEAD\<br/>Like GET but headers only\<br/>Used for cache validation"]:::ok
+    OPT["OPTIONS\<br/>CORS preflight check"]:::ok
+
+    REQ --> M
+    M --> GET & POST & PUT & PATCH & DELETE & HEAD & OPT
+```
+
+**Idempotency:** calling the same request multiple times produces the same result. `PUT /users/42` always ends with the same user state. `POST /users` creates a new user each time. This matters for retry logic — retrying an idempotent request is always safe.
+
+---
 
 ## Status Codes
 
-| Range | Category |
-|-------|----------|
-| 1xx | Informational |
-| 2xx | Success (200 OK, 201 Created) |
-| 3xx | Redirection (301, 302, 304) |
-| 4xx | Client errors (400, 401, 404) |
-| 5xx | Server errors (500, 502, 503) |
+Status codes communicate outcome. Client code should branch on code ranges, not individual values.
 
-## HTTP/2 and HTTP/3
+| Range | Category | Key codes |
+|---|---|---|
+| **1xx** | Informational | `100 Continue`, `101 Switching Protocols` |
+| **2xx** | Success | `200 OK`, `201 Created`, `204 No Content` |
+| **3xx** | Redirection | `301 Moved Permanently`, `302 Found`, `304 Not Modified` |
+| **4xx** | Client error | `400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`, `429 Too Many Requests` |
+| **5xx** | Server error | `500 Internal Server Error`, `502 Bad Gateway`, `503 Service Unavailable`, `504 Gateway Timeout` |
 
-Modern HTTP versions introduce significant improvements:
+```mermaid
+flowchart TD
+    accTitle: Status Codes
+    accDescr: Flowchart (td) showing Retry-After header
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-- **HTTP/2** — Multiplexing, header compression, server push
-- **HTTP/3** — Built on QUIC (UDP-based), reduced latency
+    RESP["HTTP Response"]:::step
+    RANGE{"Status code range?"}:::decesion
+    S2XX["2xx — Success\<br/>Process response body"]:::ok
+    S3XX["3xx — Redirect\<br/>Follow Location header"]:::step
+    S4XX["4xx — Client error\<br/>Do NOT retry automatically\<br/>Fix the request"]:::fail
+    S429["429 Too Many Requests\<br/>Backoff and retry\<br/>(Retry-After header)"]:::fail
+    S5XX["5xx — Server error\<br/>Safe to retry with backoff\<br/>Alert if sustained"]:::fail
+
+    RESP --> RANGE
+    RANGE --> S2XX & S3XX & S4XX & S5XX
+    S4XX --> S429
+```
+
+<Callout type="warning" title="Never Retry 4xx Blindly">
+Retrying a `400 Bad Request` or `403 Forbidden` will never succeed — the request itself is malformed or unauthorized. Automatic retries should only target `5xx` responses and `429` (with the `Retry-After` delay respected).
+</Callout>
+
+---
+
+## HTTP/1.1 vs HTTP/2: Connection Model
+
+### HTTP/1.1 Head-of-Line Blocking
+
+```mermaid
+sequenceDiagram
+    accTitle: HTTP/1.1 Head-of-Line Blocking
+    accDescr: Sequence diagram showing CSS, PNG, Client
+    participant C as Client
+    participant S as Server
+
+    Note over C,S: HTTP/1.1 — one request per TCP connection at a time
+    C->>S: GET /style.css
+    S-->>C: 200 OK (CSS)
+    C->>S: GET /app.js        ← blocked until style.css completes
+    S-->>C: 200 OK (JS)
+    C->>S: GET /logo.png      ← blocked until app.js completes
+    S-->>C: 200 OK (PNG)
+    Note over C,S: Workaround: open 6 parallel TCP connections per domain
+```
+
+### HTTP/2 Multiplexing
+
+```mermaid
+sequenceDiagram
+    accTitle: HTTP/2 Multiplexing
+    accDescr: Sequence diagram showing CSS, PNG, Client
+    participant C as Client
+    participant S as Server
+
+    Note over C,S: HTTP/2 — multiple streams over one TCP connection
+    C->>S: Stream 1: GET /style.css
+    C->>S: Stream 3: GET /app.js
+    C->>S: Stream 5: GET /logo.png
+    Note over C,S: All in-flight simultaneously on single connection
+    S-->>C: Stream 3: 200 OK (JS) — arrives first
+    S-->>C: Stream 1: 200 OK (CSS)
+    S-->>C: Stream 5: 200 OK (PNG)
+```
+
+**HTTP/2 improvements over HTTP/1.1:**
+- **Multiplexing** — multiple requests over one connection, no head-of-line blocking at the HTTP level
+- **Header compression (HPACK)** — repeated headers (like `Authorization`) are sent as references
+- **Server push** — server proactively sends resources client will need (rarely used in practice)
+- **Binary framing** — more efficient parsing than text
+
+<Callout type="info" title="HTTP/3 and QUIC">
+HTTP/3 replaces TCP with QUIC (UDP-based). QUIC solves HTTP/2's remaining head-of-line blocking at the TCP layer — a single dropped packet in TCP blocks all HTTP/2 streams, but QUIC handles each stream independently. AWS CloudFront and Azure Front Door support HTTP/3 natively.
+</Callout>
+
+---
+
+## Caching Headers
+
+HTTP has a rich caching model. Getting it right reduces origin load and improves user-perceived latency.
+
+| Header | Direction | Purpose |
+|---|---|---|
+| `Cache-Control: max-age=3600` | Response | Cache for 3600s |
+| `Cache-Control: no-cache` | Response | Revalidate with server before using cache |
+| `Cache-Control: no-store` | Response | Never cache (sensitive data) |
+| `Cache-Control: private` | Response | Only browser cache, not shared CDN cache |
+| `ETag: "abc123"` | Response | Content fingerprint for conditional requests |
+| `If-None-Match: "abc123"` | Request | Revalidation — 304 if not changed |
+| `Last-Modified` | Response | Timestamp version for conditional requests |
+
+---
+
+## Cloud API Gateway and Load Balancer Integration
+
+In cloud deployments, HTTP requests pass through multiple layers before reaching your application:
+
+```mermaid
+flowchart TD
+    accTitle: Cloud API Gateway and Load Balancer Integration
+    accDescr: Flowchart (td) showing CloudFront / Azure Front Door, JWT validation
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    CLIENT["Client"]:::ok
+    CDN["CDN Edge (CloudFront / Azure Front Door)\<br/>HTTP/3, TLS termination\<br/>Geographic caching"]:::step
+    WAF["WAF\<br/>OWASP rule sets\<br/>Rate limiting, bot detection"]:::fail
+    AGW["API Gateway\<br/>Auth (JWT validation)\<br/>Request transformation\<br/>Route to backend"]:::step
+    ALB["Application Load Balancer\<br/>L7 routing by path/header\<br/>Health checks\<br/>HTTP/2 to targets"]:::step
+    SVC["Microservice / Lambda"]:::ok
+
+    CLIENT --> CDN --> WAF --> AGW --> ALB --> SVC
+```
+
+**What each layer adds:**
+
+| Layer | Adds |
+|---|---|
+| CDN | Geographic caching, HTTP/3, TLS edge termination |
+| WAF | OWASP rules, rate limiting, IP-based allow/deny |
+| API Gateway | JWT/OAuth validation, request throttling, routing, versioning |
+| ALB | Path-based routing, host-based routing, health check–aware balancing |
+| Service | Application logic |
+
+<CodeTabs tabs={[
+  {
+    label: "curl HTTP debugging",
+    lang: "bash",
+    code: `# Full verbose: see actual request and response headers
+curl -v https://api.example.com/users
+
+# Show only headers, discard body
+curl -I https://api.example.com/users
+
+# Time the connection breakdown
+curl -o /dev/null -s -w "\\n\\
+DNS:         %{time_namelookup}s\\n\\
+Connect:     %{time_connect}s\\n\\
+TLS:         %{time_appconnect}s\\n\\
+TTFB:        %{time_starttransfer}s\\n\\
+Total:       %{time_total}s\\n" \\
+https://api.example.com/users`
+  },
+  {
+    label: "HTTP/2 testing",
+    lang: "bash",
+    code: `# Confirm server supports HTTP/2
+curl -I --http2 https://api.example.com/
+
+# With nghttp2 — inspect streams
+nghttp -v https://api.example.com/
+
+# Check via openssl
+openssl s_client -connect api.example.com:443 -alpn h2 2>&1 | grep ALPN`
+  },
+  {
+    label: "Headers for security",
+    lang: "bash",
+    code: `# Check security headers on a site
+curl -I https://api.example.com | grep -Ei \\
+  "strict-transport|content-security|x-frame|x-content-type|referrer-policy"
+
+# Expected production headers:
+# Strict-Transport-Security: max-age=31536000; includeSubDomains
+# Content-Security-Policy: default-src 'self'
+# X-Frame-Options: DENY
+# X-Content-Type-Options: nosniff
+# Referrer-Policy: strict-origin-when-cross-origin`
+  },
+]} />
+
+---
+
+<Quiz
+  question="A client retries a POST /orders request after a 504 Gateway Timeout. The server had actually processed the first request before the gateway timed out. What is the result?"
+  options={[
+    { label: "The retry is safe because POST is idempotent" },
+    { label: "Nothing — the server rejects the duplicate automatically" },
+    { label: "A duplicate order may be created because POST is not idempotent", correct: true },
+    { label: "The 504 means the server never received the first request" },
+  ]}
+  explanation="POST is not idempotent. A 504 means the gateway gave up waiting — the upstream server may have already processed the request. The retry creates a second order. The correct fix is to use an idempotency key header (e.g., Stripe's `Idempotency-Key`) so the server can detect and deduplicate the retry."
+/>

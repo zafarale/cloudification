@@ -16,7 +16,7 @@ Common lessons are **foundation modules**. They must be in-depth enough that AWS
 
 - Prefer transferable concepts over provider-specific syntax
 - Keep examples conceptual and cloud-neutral where possible
-- Use AWS/Azure naming only in comparison tables
+- Use AWS/Azure/GCP naming only in comparison tables
 - Bias toward prevention + detection + response thinking
 - Include failure modes and common mistakes explicitly
 

@@ -7,7 +7,7 @@ export async function getStaticPaths() {
   const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
 
   return sorted.map((entry, index) => ({
-    params: { slug: entry.id.replace(/\.md$/, '') },
+    params: { slug: entry.id.replace(/\.mdx?$/, '') },
     props: {
       entry,
       prev: sorted[index - 1] ?? null,

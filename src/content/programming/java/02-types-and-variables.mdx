@@ -1,0 +1,148 @@
+---
+title: "Types and Variables"
+description: "Primitive types, reference types, and how Java's type system works"
+order: 2
+duration: 8
+tags: ["types", "variables", "primitives"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+
+Java is a statically typed language — every variable must have a declared type, and that type cannot change. This strictness is one of Java's biggest strengths in large codebases.
+
+<KeyPoints>
+- The 8 primitive types and their sizes in memory
+- Why primitives live on the stack while reference types live on the heap
+- How widening and narrowing conversions work with explicit casting
+- When to use `var` for local type inference
+</KeyPoints>
+
+---
+
+## Primitive Types
+
+Java has 8 primitive types that hold raw values directly in memory:
+
+| Type | Size | Example |
+|---|---|---|
+| `int` | 32-bit | `int age = 30;` |
+| `long` | 64-bit | `long population = 8_000_000_000L;` |
+| `double` | 64-bit float | `double price = 9.99;` |
+| `float` | 32-bit float | `float ratio = 0.5f;` |
+| `boolean` | true/false | `boolean active = true;` |
+| `char` | 16-bit Unicode | `char grade = 'A';` |
+| `byte` | 8-bit | `byte flags = 0b0010;` |
+| `short` | 16-bit | `short port = 8080;` |
+
+Primitives are stored directly on the **stack** — fast to access and automatically cleaned up when they go out of scope.
+
+## Primitive vs Reference Types in Memory
+
+```mermaid
+flowchart TD
+    accTitle: Stack vs Heap Memory Layout in Java
+    accDescr: Diagram contrasting where primitive types and reference types are stored. Primitive variables (int age, boolean active) are stored directly on the stack. Reference variables store a memory address on the stack that points to the actual object on the heap, which is managed by the garbage collector.
+    classDef stack fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef heap  fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef label fill:none,stroke:#475569,color:#94a3b8
+    linkStyle default stroke-width:2.5px
+
+    subgraph STACK["fa:fa-layer-group Stack (fast, scoped, auto-freed)"]
+        P1["fa:fa-hashtag int age = 30"]:::stack
+        P2["fa:fa-toggle-on boolean active = true"]:::stack
+        REF["fa:fa-arrow-right String ref → 0x1a2f"]:::stack
+    end
+
+    subgraph HEAP["fa:fa-box-open Heap (GC managed, shared)"]
+        OBJ["fa:fa-font String object<br/>value: 'Alice'"]:::heap
+    end
+
+    REF -->|"points to"| OBJ
+```
+
+## Reference Types
+
+Everything else in Java is a reference type — variables hold a reference (pointer) to an object in **heap** memory.
+```java
+String name = "Alice";       // String is a reference type
+int[] numbers = {1, 2, 3};  // arrays are reference types
+```
+
+The most important implication: when you assign one reference variable to another, both point to the same object.
+```java
+int[] a = {1, 2, 3};
+int[] b = a;      // b points to the same array as a
+b[0] = 99;
+System.out.println(a[0]); // prints 99
+```
+
+## Type Widening and Narrowing
+
+```mermaid
+flowchart LR
+    accTitle: Java Type Widening and Narrowing Conversions
+    accDescr: Diagram showing the chain of automatic widening conversions from byte up through short, int, long, float, to double. Narrowing conversions (going down the chain) require an explicit cast and may lose data.
+    classDef auto   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef narrow fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    B["byte<br/>8-bit"]:::auto
+    S["short<br/>16-bit"]:::auto
+    I["int<br/>32-bit"]:::auto
+    L["long<br/>64-bit"]:::auto
+    F["float<br/>32-bit"]:::auto
+    D["double<br/>64-bit"]:::auto
+
+    B -->|"fa:fa-check auto"| S
+    S -->|"fa:fa-check auto"| I
+    I -->|"fa:fa-check auto"| L
+    L -->|"fa:fa-check auto"| F
+    F -->|"fa:fa-check auto"| D
+    D -.->|"fa:fa-xmark (int) cast"| I
+    I -.->|"fa:fa-xmark (byte) cast"| B
+```
+
+Java won't silently convert between types — you have to be explicit:
+```java
+int x = 9;
+double d = x;          // widening — safe, happens automatically
+int y = (int) 9.99;    // narrowing — must cast explicitly, loses .99
+```
+
+## var — Local Type Inference
+
+Since Java 10 you can use `var` and let the compiler infer the type:
+```java
+var message = "Hello";   // compiler infers String
+var count = 42;          // compiler infers int
+var items = new ArrayList<String>(); // infers ArrayList<String>
+```
+
+`var` only works for local variables — not method parameters or fields.
+
+## Constants
+
+Use `final` to declare a variable whose value cannot be reassigned:
+```java
+final double PI = 3.14159;
+final String APP_NAME = "Acert";
+```
+
+By convention, constants are written in UPPER_SNAKE_CASE.
+
+<Callout type="warning" title="Narrowing Can Silently Lose Data">
+  `(int) 9.99` gives you `9`, not an error. Always verify the target range before narrowing — casting a large `long` to `int` wraps silently if the value overflows.
+</Callout>
+
+<Quiz
+  question="What is printed by: `int[] a = {1,2,3}; int[] b = a; b[0] = 99; System.out.println(a[0]);`"
+  options={[
+    { label: "1 — arrays are copied on assignment" },
+    { label: "99 — both variables point to the same array object", correct: true },
+    { label: "Compilation error" },
+    { label: "0 — b is a new empty array" },
+  ]}
+  explanation="Arrays are reference types. `b = a` makes both variables point to the same array on the heap. Mutating via b affects the same array a points to."
+/>

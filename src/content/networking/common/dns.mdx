@@ -1,51 +1,312 @@
 ---
-title: "DNS - Domain Name System"
-description: "How domain names are resolved to IP addresses"
+title: "DNS — Domain Name System"
+description: "How domain names resolve to IP addresses — recursive resolution, record types, TTL, DNSSEC, and cloud-managed DNS services including Route 53 and Azure DNS."
 order: 1
-duration: 8
-tags: ["dns", "fundamentals"]
-sharedWith: ["cloud", "security"]
+duration: 18
+tags: ["dns", "fundamentals", "route53", "azure-dns", "security"]
+sharedWith: ["cloud", "networking", "security"]
 ---
 
-DNS is the phonebook of the internet. It translates human-readable domain names (like `example.com`) into IP addresses that computers use to communicate.
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
 
-## How DNS Works
+DNS is the distributed database that translates `api.example.com` into `93.184.216.34`. Without it, every application would have to hardcode IP addresses. Understanding DNS resolution, TTLs, and failure modes is essential for debugging connectivity issues and designing resilient cloud architectures.
 
-When you type a URL in your browser:
+<KeyPoints>
+- How recursive DNS resolution works from client to authoritative nameserver
+- The difference between recursive resolver, root, TLD, and authoritative nameservers
+- How TTL controls caching and impacts deployment velocity
+- Common record types and when to use A, CNAME, ALIAS, and MX
+- How cloud DNS services (Route 53, Azure DNS) differ from self-hosted DNS
+- How DNSSEC prevents cache poisoning and response spoofing
+</KeyPoints>
 
-1. **Browser cache** — Check if we recently looked this up
-2. **OS cache** — Check the operating system's DNS cache
-3. **Resolver** — Ask your ISP's DNS resolver
-4. **Root servers** — Find the TLD nameserver (.com, .org, etc.)
-5. **TLD nameserver** — Find the authoritative nameserver
-6. **Authoritative nameserver** — Get the actual IP address
+---
 
-## Record Types
+## Recursive DNS Resolution
 
-| Type | Purpose |
-|------|---------|
-| A | Maps domain to IPv4 address |
-| AAAA | Maps domain to IPv6 address |
-| CNAME | Alias to another domain |
-| MX | Mail server for the domain |
-| TXT | Arbitrary text (often for verification) |
-| NS | Nameserver for the domain |
+When a client asks "what is the IP for `api.example.com`?", the resolution follows a hierarchical chain.
 
-## DNS in Practice
+```mermaid
+flowchart TD
+    accTitle: Recursive DNS Resolution
+    accDescr: Flowchart (td) showing ISP or 8.8.8.8 / 1.1.1.1, 13 root clusters, anycast, TTL valid
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-```bash
-# Look up A record
-dig example.com A
+    CLIENT["Client Browser"]:::ok
+    CACHE1{"Local cache\<br/>or /etc/hosts?"}:::decesion
+    OS_CACHE{"OS stub resolver\<br/>cache hit?"}:::decesion
+    RESOLVER["Recursive Resolver\<br/>(ISP or 8.8.8.8 / 1.1.1.1)"]:::step
+    RCACHE{"Resolver has\<br/>cached answer?"}:::decesion
+    ROOT["Root Nameserver\<br/>(13 root clusters, anycast)"]:::step
+    TLD["TLD Nameserver\<br/>.com / .org / .io"]:::step
+    AUTH["Authoritative Nameserver\<br/>ns1.example.com"]:::step
+    ANSWER["IP: 93.184.216.34"]:::ok
 
-# Look up all records
-dig example.com ANY
-
-# Trace the full resolution path
-dig +trace example.com
+    CLIENT --> CACHE1
+    CACHE1 -- "Hit" --> ANSWER
+    CACHE1 -- "Miss" --> OS_CACHE
+    OS_CACHE -- "Hit" --> ANSWER
+    OS_CACHE -- "Miss" --> RESOLVER
+    RESOLVER --> RCACHE
+    RCACHE -- "Hit (TTL valid)" --> ANSWER
+    RCACHE -- "Miss" --> ROOT
+    ROOT -- "Refer to .com TLD" --> TLD
+    TLD -- "Refer to ns1.example.com" --> AUTH
+    AUTH -- "A record: 93.184.216.34" --> RESOLVER
+    RESOLVER -- "Returns + caches" --> CLIENT
 ```
 
-## Security Considerations
+The resolver does the heavy lifting — root servers respond with referrals, not final answers. A typical lookup traverses 3–4 hops and completes in under 100 ms for uncached queries.
 
-- **DNS spoofing** — Attackers returning false IP addresses
-- **DNSSEC** — Cryptographic signatures to verify DNS responses
-- **DNS over HTTPS (DoH)** — Encrypts DNS queries
+### Why Root Servers Don't Get Overwhelmed
+
+There are only 13 root server *addresses*, but each maps to hundreds of physical machines globally using **anycast** — your query goes to the closest instance. Root servers are also rarely hit because resolvers cache `.com`/`.org` TLD delegation records for 48 hours.
+
+---
+
+## DNS Record Types
+
+| Type | Purpose | Example |
+|---|---|---|
+| **A** | IPv4 address for a hostname | `api.example.com → 93.184.216.34` |
+| **AAAA** | IPv6 address for a hostname | `api.example.com → 2606:2800::1` |
+| **CNAME** | Alias for another domain | `www.example.com → example.com` |
+| **ALIAS / ANAME** | CNAME-like but usable at zone apex (`@`) | `example.com → alb-123.us-east-1.elb.amazonaws.com` |
+| **MX** | Mail exchange servers for the domain | `example.com → mailserver.google.com` (priority 10) |
+| **TXT** | Arbitrary text — SPF, DKIM, ownership verification | `example.com → "v=spf1 include:_spf.google.com ~all"` |
+| **NS** | Nameservers authoritative for the zone | `example.com → ns1.awsdns-01.com` |
+| **SOA** | Zone metadata: primary NS, serial, refresh/retry/expire | One per zone |
+| **PTR** | Reverse DNS: IP → hostname | `34.216.184.93.in-addr.arpa → api.example.com` |
+| **SRV** | Service location with port and priority | Used by Kubernetes, SIP, XMPP |
+
+<Callout type="warning" title="CNAME Cannot Be Used at Zone Apex">
+`CNAME` records cannot coexist with `SOA` or `NS` records — you can't point `example.com` itself (the zone apex) to a CNAME. Use **ALIAS** (Route 53) or **ANAME** (Azure DNS) records at the apex instead — these resolve the target at DNS query time and return A records.
+</Callout>
+
+---
+
+## TTL: Time to Live
+
+**TTL** is the number of seconds resolvers and clients should cache a DNS record. It directly controls how quickly changes propagate.
+
+```mermaid
+flowchart LR
+    accTitle: TTL: Time to Live
+    accDescr: Flowchart (lr) showing 3600s 1 hour, 60s 1 minute
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    HIGH_TTL["High TTL\<br/>(3600s = 1 hour)\<br/>Fewer DNS queries\<br/>Fast for clients\<br/>Slow change propagation"]:::ok
+    LOW_TTL["Low TTL\<br/>(60s = 1 minute)\<br/>More DNS queries\<br/>Fast DNS failover\<br/>Higher resolver load"]:::step
+    ZERO_TTL["TTL = 0\<br/>No caching\<br/>All queries hit authoritative\<br/>Only for testing / migration"]:::fail
+
+    HIGH_TTL --> LOW_TTL --> ZERO_TTL
+```
+
+**Pre-migration TTL strategy:**
+1. Lower TTL to 60s at least 48 hours before a migration (allow existing long-TTL caches to expire)
+2. Perform the IP change
+3. Monitor traffic shifting to the new IP
+4. Raise TTL back to 3600s after confirming the migration
+
+---
+
+## Traditional DNS vs Cloud DNS
+
+Traditional DNS relied on self-managed authoritative nameservers — `bind9` on a Linux VM, often with limited health checking and manual failover.
+
+```mermaid
+flowchart TD
+    accTitle: Traditional DNS vs Cloud DNS
+    accDescr: Flowchart (td) showing Route 53 / Azure DNS
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph TRAD["Traditional DNS"]
+        BIND["BIND9 on VM\<br/>Manual zone file edits"]:::fail
+        SECONDARY["Secondary DNS\<br/>AXFR zone transfer"]:::fail
+        FAILOVER["Manual failover\<br/>Edit A record + wait for TTL"]:::fail
+    end
+
+    subgraph CLOUD["Cloud DNS (Route 53 / Azure DNS)"]
+        R53["Route 53 Hosted Zone\<br/>API / Terraform managed"]:::ok
+        HEALTH["Health checks\<br/>Automatic DNS failover"]:::ok
+        GEO["Geolocation / Latency routing\<br/>Route by region or health"]:::ok
+        ALIAS["ALIAS records\<br/>Free routing to AWS endpoints"]:::ok
+    end
+
+    TRAD --> CLOUD
+```
+
+| Feature | Traditional BIND | Route 53 / Azure DNS |
+|---|---|---|
+| Anycast points | 1–2 DCs | 100+ PoPs worldwide |
+| Health-based failover | Manual script / nagios | Native, sub-60s |
+| Traffic policy | None | Weighted, latency, geo, failover |
+| Change workflow | Edit flat file, `rndc reload` | API call / Terraform |
+| Availability SLA | Self-managed | 100% (Route 53), 100% (Azure DNS) |
+
+---
+
+## Cloud DNS in Practice
+
+<CodeTabs tabs={[
+  {
+    label: "Route 53 (AWS CLI)",
+    lang: "bash",
+    code: `# Create a hosted zone
+aws route53 create-hosted-zone \\
+  --name api.example.com \\
+  --caller-reference "$(date +%s)"
+
+# Create an A record pointing to an ALB
+aws route53 change-resource-record-sets \\
+  --hosted-zone-id Z1234567890 \\
+  --change-batch '{
+    "Changes": [{
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "api.example.com",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "Z35SXDOTRQ7X7K",
+          "DNSName": "my-alb-123.us-east-1.elb.amazonaws.com",
+          "EvaluateTargetHealth": true
+        }
+      }
+    }]
+  }'`
+  },
+  {
+    label: "Azure DNS (CLI)",
+    lang: "bash",
+    code: `# Create a DNS zone
+az network dns zone create \\
+  --resource-group rg-shared \\
+  --name api.example.com
+
+# Create an A record
+az network dns record-set a add-record \\
+  --resource-group rg-shared \\
+  --zone-name api.example.com \\
+  --record-set-name "@" \\
+  --ipv4-address 93.184.216.34
+
+# Create a CNAME
+az network dns record-set cname set-record \\
+  --resource-group rg-shared \\
+  --zone-name example.com \\
+  --record-set-name www \\
+  --cname example.com`
+  },
+  {
+    label: "Dig debugging",
+    lang: "bash",
+    code: `# Query A record
+dig api.example.com A
+
+# Trace full resolution path (shows each delegation)
+dig +trace api.example.com
+
+# Query a specific nameserver directly
+dig @8.8.8.8 api.example.com A
+
+# Check NS delegation
+dig example.com NS
+
+# Reverse lookup
+dig -x 93.184.216.34
+
+# Check TTL on a cached response
+dig api.example.com A | grep -E "ANSWER|TTL"`
+  },
+]} />
+
+---
+
+## DNSSEC: Preventing Cache Poisoning
+
+Without DNSSEC a malicious resolver can return forged A records and send clients to phishing servers. **DNSSEC** adds cryptographic signatures to DNS responses.
+
+```mermaid
+flowchart TD
+    accTitle: DNSSEC: Preventing Cache Poisoning
+    accDescr: Flowchart (td) illustrating dnssec: preventing cache poisoning
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    QUERY["DNS query for api.example.com"]:::step
+    AUTH["Authoritative nameserver\<br/>Returns: A record + RRSIG signature"]:::step
+    RESOLVER["Validating resolver\<br/>Fetches DNSKEY from parent TLD"]:::step
+    SIG_CHECK{"RRSIG valid\<br/>against DNSKEY?"}:::decesion
+    DS_CHECK{"DNSKEY hash matches\<br/>DS record at parent TLD?"}:::decesion
+    VALID["fa:fa-check Response authenticated\<br/>Return to client"]:::ok
+    INVALID["fa:fa-xmark SERVFAIL\<br/>Response dropped"]:::fail
+
+    QUERY --> AUTH --> RESOLVER
+    RESOLVER --> SIG_CHECK
+    SIG_CHECK -- "Yes" --> DS_CHECK
+    SIG_CHECK -- "No" --> INVALID
+    DS_CHECK -- "Yes" --> VALID
+    DS_CHECK -- "No" --> INVALID
+```
+
+DNSSEC does **not** encrypt DNS traffic — it only authenticates that responses came from the legitimate zone owner. Use **DNS over HTTPS (DoH)** or **DNS over TLS (DoT)** for query privacy.
+
+<Callout type="info" title="DNS over HTTPS (DoH)">
+DoH sends DNS queries inside HTTPS to a DoH resolver (Cloudflare's `1.1.1.1`, Google's `8.8.8.8`). ISPs cannot see or intercept your DNS lookups. Most modern browsers support DoH natively and can be configured to use it regardless of OS settings.
+</Callout>
+
+---
+
+## Health-Based Failover with Route 53
+
+Route 53's health checks poll your endpoint every 30s (or 10s for premium). If an endpoint fails, Route 53 removes it from DNS responses automatically.
+
+```mermaid
+flowchart TD
+    accTitle: Health-Based Failover with Route 53
+    accDescr: Flowchart (td) illustrating health-based failover with route 53
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    QUERY["Client queries api.example.com"]:::step
+    R53["Route 53 Hosted Zone\<br/>Failover routing policy"]:::step
+    HC{"Primary health\<br/>check passing?"}:::decesion
+    PRIMARY["Primary: us-east-1 ALB"]:::ok
+    SECONDARY["Secondary: eu-west-1 ALB"]:::step
+    FAIL_REGION["us-east-1 degraded\<br/>health check fails"]:::fail
+
+    QUERY --> R53 --> HC
+    HC -- "Healthy" --> PRIMARY
+    HC -- "Unhealthy" --> SECONDARY
+    FAIL_REGION -.-> HC
+```
+
+<Quiz
+  question="You set a DNS A record TTL of 3600 seconds. You update the IP and confirm it in Route 53. A colleague reports they're still hitting the old server 30 minutes later. What is most likely happening?"
+  options={[
+    { label: "Route 53 has not propagated the change yet (propagation takes 2+ hours)" },
+    { label: "The colleague's resolver cached the old TTL and must wait up to 3600s", correct: true },
+    { label: "The A record update requires a hosted zone reset" },
+    { label: "The old server's DNS record is blocking the update" },
+  ]}
+  explanation="TTL tells resolvers how long to cache the record. A 3600s TTL means any resolver that fetched the old IP can serve it for up to one hour. Route 53 propagates changes in seconds — the caching is in intermediate resolvers. To minimise this, lower the TTL to 60s well before a planned IP change."
+/>

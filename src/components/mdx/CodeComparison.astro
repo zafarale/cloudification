@@ -12,15 +12,28 @@ const {
   leftColor = 'orange',
   rightColor = 'red',
 } = Astro.props;
+
+const colorMap: Record<string, { text: string; bg: string }> = {
+  orange: { text: 'text-orange-400', bg: 'bg-orange-500/5' },
+  red:    { text: 'text-red-400',    bg: 'bg-red-500/5' },
+  green:  { text: 'text-green-400',  bg: 'bg-green-500/5' },
+  blue:   { text: 'text-blue-400',   bg: 'bg-blue-500/5' },
+  amber:  { text: 'text-amber-400',  bg: 'bg-amber-500/5' },
+  purple: { text: 'text-purple-400', bg: 'bg-purple-500/5' },
+  gray:   { text: 'text-gray-400',   bg: 'bg-gray-500/5' },
+};
+
+const lc = colorMap[leftColor]  ?? colorMap.orange;
+const rc = colorMap[rightColor] ?? colorMap.red;
 ---
 
 <div class="not-prose my-8 rounded-xl border border-white/10 overflow-hidden">
   <!-- Labels -->
   <div class="grid grid-cols-2 divide-x divide-white/10 border-b border-white/10">
-    <div class={`px-4 py-2 text-xs font-semibold font-mono text-${leftColor}-400 bg-${leftColor}-500/5`}>
+    <div class={`px-4 py-2 text-xs font-semibold font-mono ${lc.text} ${lc.bg}`}>
       {leftLabel}
     </div>
-    <div class={`px-4 py-2 text-xs font-semibold font-mono text-${rightColor}-400 bg-${rightColor}-500/5`}>
+    <div class={`px-4 py-2 text-xs font-semibold font-mono ${rc.text} ${rc.bg}`}>
       {rightLabel}
     </div>
   </div>

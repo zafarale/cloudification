@@ -1,0 +1,253 @@
+---
+title: "Block Storage on GCP: Persistent Disks Deep Dive"
+description: "GCP Persistent Disk types with real performance numbers, Hyperdisk, Local SSD, disk attachment, snapshots, encryption, and filesystem operations."
+order: 4
+duration: 26
+tags: ["storage", "persistent-disk", "block-storage", "gce", "performance", "snapshots", "hyperdisk"]
+icon: "mdi:harddisk"
+certifications: ["Google Associate Cloud Engineer", "Google Professional Cloud Architect"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+**Google Persistent Disk** provides durable block storage for GCE instances. GCP manages replication, snapshots, and resizing — you choose the performance tier, tune IOPS and throughput (on Hyperdisk), and manage lifecycle. Picking the wrong disk type is one of the most common GCE performance mistakes: the performance ceiling is determined by the disk type *and* the machine shape.
+
+<KeyPoints>
+- Persistent Disk SKUs (pd-standard, pd-balanced, pd-ssd, pd-extreme) with performance numbers
+- Hyperdisk Balanced, Extreme, and Throughput — provisioned IOPS/throughput independent of disk size
+- Local SSD for ephemeral ultra-low-latency workloads
+- How machine type determines disk IOPS ceiling (not just disk type)
+- Attaching, formatting, mounting, and auto-mounting a data disk
+- Snapshot scheduling and cross-region snapshot replication
+- Disk encryption options: Google-managed, CMEK, and CSEK
+</KeyPoints>
+
+---
+
+## Persistent Disk Types
+
+### Standard Comparison
+
+| Type | Backing | Max IOPS (read/write) | Max Throughput | Best For |
+|---|---|---|---|---|
+| **pd-standard** | HDD | 3,000 / 3,000 | 240 MB/s | Sequential workloads, cold storage, dev |
+| **pd-balanced** | SSD | 80,000 / 80,000 | 1,200 MB/s | General-purpose production workloads |
+| **pd-ssd** | SSD | 100,000 / 100,000 | 1,200 MB/s | High-IOPS databases, latency-sensitive apps |
+| **pd-extreme** | SSD | 120,000 / 120,000 | 2,400 MB/s | SAP HANA, largest OLTP workloads |
+
+<Callout type="warning">
+**IOPS scales with disk size** on standard PDs. A 100 GB `pd-ssd` delivers far fewer IOPS than a 500 GB `pd-ssd`. Check the [GCE disk documentation](https://cloud.google.com/compute/docs/disks/performance) for the IOPS-per-GB formula per type before provisioning.
+</Callout>
+
+### pd-extreme Details
+
+`pd-extreme` supports **provisioned IOPS** — you specify the IOPS you need, decoupling performance from disk size:
+
+```bash
+gcloud compute disks create prod-db-disk \
+  --type=pd-extreme \
+  --size=2TB \
+  --provisioned-iops=80000 \
+  --zone=us-central1-a
+```
+
+You pay for provisioned IOPS separately from capacity. This is GCP's equivalent of AWS `io2` Block Express.
+
+---
+
+## Hyperdisk: Next-Generation Block Storage
+
+Hyperdisk is the newer generation of GCP block storage with fully independent capacity, IOPS, and throughput provisioning — each is a separate parameter you set and pay for independently.
+
+### Hyperdisk Types
+
+| Type | Max IOPS | Max Throughput | Primary Use |
+|---|---|---|---|
+| **Hyperdisk Balanced** | 160,000 | 2,400 MB/s | Production VMs, databases |
+| **Hyperdisk Extreme** | 350,000 | 5,000 MB/s | Highest-performance OLTP, SAP HANA |
+| **Hyperdisk Throughput** | 1,200 | 2,400 MB/s | Large sequential I/O (Kafka, columnar DBs) |
+
+```bash
+# Create a Hyperdisk Balanced with explicit IOPS and throughput
+gcloud compute disks create prod-hd-disk \
+  --type=hyperdisk-balanced \
+  --size=1TB \
+  --provisioned-iops=50000 \
+  --provisioned-throughput=500 \
+  --zone=us-central1-a
+```
+
+<Callout type="info">
+Hyperdisk volume IOPS and throughput can be **modified online** — without stopping the instance or detaching the disk. This is useful for scaling storage performance during peak events without downtime.
+
+```bash
+gcloud compute disks update prod-hd-disk \
+  --provisioned-iops=80000 \
+  --zone=us-central1-a
+```
+</Callout>
+
+---
+
+## The Machine Type Ceiling
+
+Even with a high-performance disk, a GCE instance can only deliver as many IOPS as its machine shape allows. The instance's I/O performance ceiling is determined by both the disk type *and* the machine type.
+
+| Machine Shape | Max Read IOPS | Max Write IOPS |
+|---|---|---|
+| e2-standard-4 | 15,000 | 15,000 |
+| n2-standard-8 | 60,000 | 30,000 |
+| n2-standard-16 | 100,000 | 100,000 |
+| n2-standard-32 | 160,000 | 160,000 |
+
+A `pd-extreme` disk can deliver 120,000 IOPS, but an `e2-standard-4` instance caps at 15,000. Match the machine type to the disk type.
+
+---
+
+## Local SSD
+
+NVMe drives physically attached to the hypervisor. Each slice is 375 GB; you can attach 1–24 slices per instance (machine-type dependent).
+
+```bash
+gcloud compute instances create high-perf-vm \
+  --machine-type=n2-standard-32 \
+  --local-ssd=interface=NVME \
+  --local-ssd=interface=NVME \
+  --zone=us-central1-a
+```
+
+<Callout type="danger">
+Local SSD data is **permanently lost** when the instance is stopped, deleted, or if the underlying hardware fails. Local SSD survives **live migration** (GCP migrates the VM between hosts while running) but not explicit stop operations. Use it only for ephemeral data: cache, temp processing, scratch space.
+</Callout>
+
+---
+
+## Attaching, Formatting, and Mounting a Data Disk
+
+```bash
+# 1. Create the disk
+gcloud compute disks create prod-data-disk \
+  --type=pd-balanced \
+  --size=500GB \
+  --zone=us-central1-a
+
+# 2. Attach to a running instance (online attach, no reboot needed)
+gcloud compute instances attach-disk prod-web-01 \
+  --disk=prod-data-disk \
+  --zone=us-central1-a
+```
+
+Inside the instance:
+
+```bash
+# 3. Find the new disk device (typically /dev/sdb or /dev/nvme0n2)
+lsblk
+
+# 4. Format (only on first use — this destroys data)
+sudo mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0,discard \
+  /dev/sdb
+
+# 5. Create mount point and mount
+sudo mkdir -p /mnt/data
+sudo mount -o discard,defaults /dev/sdb /mnt/data
+
+# 6. Make it persistent (auto-mount on reboot)
+echo UUID=$(sudo blkid -s UUID -o value /dev/sdb) \
+  /mnt/data ext4 discard,defaults,nofail 0 2 | sudo tee -a /etc/fstab
+```
+
+<Callout type="tip">
+Use `-o discard` in mount options to enable TRIM/DISCARD for SSDs — this improves long-term performance by informing the disk controller about freed blocks.
+</Callout>
+
+### Growing a Disk Online
+
+You can resize a persistent disk while the instance is running:
+
+```bash
+# 1. Resize in GCP (no downtime)
+gcloud compute disks resize prod-data-disk \
+  --size=1000GB \
+  --zone=us-central1-a
+
+# 2. Resize the filesystem inside the instance
+sudo resize2fs /dev/sdb
+```
+
+---
+
+## Snapshots
+
+Snapshots capture the state of a persistent disk at a point in time. The first snapshot is a full copy; subsequent snapshots are incremental.
+
+```bash
+# Manual snapshot
+gcloud compute snapshots create prod-data-snap-$(date +%Y%m%d) \
+  --source-disk=prod-data-disk \
+  --source-disk-zone=us-central1-a \
+  --storage-location=us
+
+# Create a disk from a snapshot (used for restore or migration)
+gcloud compute disks create restored-disk \
+  --source-snapshot=prod-data-snap-20260307 \
+  --type=pd-balanced \
+  --zone=us-central1-a
+```
+
+### Snapshot Schedules
+
+For automated backup, attach a **snapshot schedule** to a disk:
+
+```bash
+gcloud compute resource-policies create snapshot-schedule daily-backup \
+  --region=us-central1 \
+  --max-retention-days=14 \
+  --on-source-disk-delete=keep-auto-snapshots \
+  --daily-schedule \
+  --start-time=02:00
+
+gcloud compute disks add-resource-policies prod-data-disk \
+  --resource-policies=daily-backup \
+  --zone=us-central1-a
+```
+
+<Callout type="info">
+Snapshots are stored in Cloud Storage and billed at Cloud Storage rates. Cross-region snapshot replication is supported: specify `--storage-location=us` for multi-region, or a specific region for data residency requirements.
+</Callout>
+
+---
+
+## Disk Encryption
+
+| Encryption Type | Key Management | Use Case |
+|---|---|---|
+| **Google-managed (default)** | GCP manages keys automatically | Most workloads |
+| **CMEK** | Customer key in Cloud KMS | Regulatory compliance, audit trail |
+| **CSEK** | Customer supplies raw AES-256 key | Maximum key control (GCP never sees the key) |
+
+```bash
+# CMEK — attach a Cloud KMS key at disk creation
+gcloud compute disks create secure-disk \
+  --type=pd-ssd \
+  --size=100GB \
+  --kms-key=projects/prod-web-001/locations/us-central1/keyRings/prod-keyring/cryptoKeys/prod-disk-key \
+  --zone=us-central1-a
+```
+
+<Callout type="warning">
+With CSEK, GCP stores only the encrypted form of the key. If you lose the key, **the data is unrecoverable**. Store CSEK keys in a secrets manager (Secret Manager or HashiCorp Vault), not in source control.
+</Callout>
+
+<Quiz
+  question="A 100 GB pd-ssd disk is attached to an e2-standard-4 instance. The application is hitting an IOPS ceiling that's much lower than what pd-ssd supports. What's the most likely cause?"
+  options={[
+    { label: "pd-ssd requires Hyperdisk to achieve full IOPS" },
+    { label: "The e2-standard-4 instance has a lower IOPS ceiling than the disk can deliver", correct: true },
+    { label: "100 GB is too small to achieve full pd-ssd IOPS" },
+    { label: "The disk needs to be formatted with ext4 discard option" },
+  ]}
+  explanation="GCE instance types have their own IOPS ceiling independent of the attached disk. An e2-standard-4 caps at ~15,000 read IOPS regardless of disk type. To get full pd-ssd IOPS (up to 100,000), use a machine type with a matching IOPS ceiling like n2-standard-32."
+/>

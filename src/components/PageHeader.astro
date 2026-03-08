@@ -1,15 +1,18 @@
 ---
+import { Icon } from 'astro-icon/components';
+
 interface Props {
   title: string;
   description: string;
   icon?: string;
+  iconName?: string;
   backHref: string;
   backLabel: string;
   lessonCount: number;
   totalDuration: number;
 }
 
-const { title, description, icon, backHref, backLabel, lessonCount, totalDuration } = Astro.props;
+const { title, description, icon, iconName, backHref, backLabel, lessonCount, totalDuration } = Astro.props;
 ---
 
 <section class="max-w-4xl mx-auto px-6 pt-16 pb-12">
@@ -21,7 +24,8 @@ const { title, description, icon, backHref, backLabel, lessonCount, totalDuratio
   </a>
 
   <div class="flex items-center gap-4 mb-4">
-    {icon && <span class="text-5xl">{icon}</span>}
+    {iconName && <Icon name={iconName} class="w-12 h-12" />}
+    {icon && !iconName && <span class="text-5xl">{icon}</span>}
     <h1 class="text-5xl font-black tracking-tight font-mono">{title}</h1>
   </div>
 

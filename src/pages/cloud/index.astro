@@ -12,6 +12,9 @@ const awsLessons = await getCollection('cloud', ({ id }) =>
 const azureLessons = await getCollection('cloud', ({ id }) =>
   id.startsWith('azure/')
 );
+const gcpLessons = await getCollection('cloud', ({ id }) =>
+  id.startsWith('gcp/')
+);
 const commonLessons = await getCollection('cloud', ({ id }) =>
   id.startsWith('common/') || id.startsWith('_common/')
 );
@@ -19,21 +22,21 @@ const commonLessons = await getCollection('cloud', ({ id }) =>
 
 <BaseLayout 
   title="Cloud"
-  description="Learn cloud computing on AWS and Azure. From EC2 and S3 to serverless functions and Kubernetes — build and scale cloud infrastructure."
-  keywords={['AWS tutorials', 'Azure tutorials', 'cloud computing', 'EC2', 'S3', 'Lambda', 'Azure Functions', 'Kubernetes', 'cloud infrastructure']}
-  certifications={['AWS Solutions Architect', 'AWS Developer Associate', 'Azure Administrator', 'Azure Developer Associate', 'AWS Cloud Practitioner']}
+  description="Learn cloud computing on AWS, Azure, and GCP. From virtual machines and object storage to serverless and Kubernetes — build and scale cloud infrastructure."
+  keywords={['AWS tutorials', 'Azure tutorials', 'GCP tutorials', 'Google Cloud', 'cloud computing', 'EC2', 'S3', 'Lambda', 'Azure Functions', 'GKE', 'Kubernetes', 'cloud infrastructure']}
+  certifications={['AWS Solutions Architect', 'AWS Developer Associate', 'Azure Administrator', 'Azure Developer Associate', 'AWS Cloud Practitioner', 'Google Associate Cloud Engineer', 'Google Professional Cloud Architect']}
 >
 
   <TutorialHeader
     title="Cloud"
-    description="Choose a cloud provider. Both share core infrastructure concepts — you'll see them highlighted as you progress."
+    description="Choose a cloud provider. All three share core infrastructure concepts — you'll see them highlighted as you progress."
     emoji="☁️"
-    lessonCount={awsLessons.length + azureLessons.length}
+    lessonCount={awsLessons.length + azureLessons.length + gcpLessons.length}
     sharedCount={commonLessons.length}
   />
 
   <!-- Track cards -->
-  <section class="max-w-5xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+  <section class="max-w-6xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
     <FeatureCard
       title="Amazon Web Services"
       description="The world's largest cloud platform. From EC2 and S3 to Lambda and beyond — learn to build and scale on AWS."
@@ -53,12 +56,21 @@ const commonLessons = await getCollection('cloud', ({ id }) =>
       color="blue"
       lessonCount={azureLessons.length}
     />
+
+    <FeatureCard
+      title="Google Cloud Platform"
+      description="Google's cloud built on the same infrastructure as Search and YouTube. GCE, GKE, BigQuery, and a leading data and ML portfolio."
+      href="/cloud/gcp"
+      icon="logos:google-cloud"
+      color="green"
+      lessonCount={gcpLessons.length}
+    />
   </section>
 
   <SharedLessons
     lessons={commonLessons}
     basePath="/cloud/common"
-    title="Shared across both providers"
+    title="Shared across all providers"
     color="cyan"
   />
 

@@ -13,11 +13,34 @@ import Quiz from '../../../components/mdx/Quiz.astro';
 import CodeTabs from '../../../components/mdx/CodeTabs.astro';
 import List from '../../../components/mdx/List.astro';
 
-# Programming Paradigms
-
 A programming paradigm is a fundamental style or approach to writing code. Most languages support multiple paradigms — understanding them helps you recognize patterns, choose the right tool, and read code written by others more fluently.
 
 Both Java and Rust are **multi-paradigm** languages. You'll use different paradigms for different problems, often mixing them in the same codebase.
+
+```mermaid
+flowchart TD
+    accTitle: Choosing a Programming Paradigm
+    accDescr: Decision flowchart for choosing between OOP, Functional, Declarative, and Imperative paradigms. If you are modeling real-world entities with state, use OOP. If transforming data streams, use Functional. If querying or configuring a system, use Declarative. Otherwise, use Imperative for explicit step-by-step control.
+    classDef q   fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ans fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Q1{"fa:fa-circle-question Modeling real-world<br/>entities with state?"}:::q
+    Q2{"fa:fa-circle-question Transforming<br/>data streams?"}:::q
+    Q3{"fa:fa-circle-question Querying or<br/>configuring a system?"}:::q
+
+    OOP["fa:fa-object-group OOP<br/>Classes, interfaces, polymorphism"]:::ans
+    FUNC["fa:fa-arrows-rotate Functional<br/>map · filter · reduce"]:::ans
+    DECL["fa:fa-magnifying-glass Declarative<br/>SQL, config, stream DSLs"]:::ans
+    IMP["fa:fa-list-ol Imperative<br/>Step-by-step, explicit control"]:::ans
+
+    Q1 -->|"Yes"| OOP
+    Q1 -->|"No"| Q2
+    Q2 -->|"Yes"| FUNC
+    Q2 -->|"No"| Q3
+    Q3 -->|"Yes"| DECL
+    Q3 -->|"No"| IMP
+```
 
 ## Imperative Programming
 

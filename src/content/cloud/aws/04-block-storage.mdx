@@ -4,7 +4,7 @@ description: "Master AWS Elastic Block Store — volume types with real performa
 order: 4
 duration: 28
 tags: ["storage", "ebs", "block-storage", "ec2", "performance", "snapshots"]
-icon: "aws/storage/elastic-block-store"
+icon: "mdi:harddisk"
 certifications: ["AWS Solutions Architect Associate", "AWS SysOps Administrator Associate"]
 ---
 
@@ -37,19 +37,26 @@ By the end of this lesson you will be able to:
 
 EC2 gives you two categories of storage. Understanding the difference prevents catastrophic data loss.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        EC2 Instance                             │
-│                                                                 │
-│  ┌───────────────────┐        ┌──────────────────────────────┐  │
-│  │   Instance Store  │        │          EBS Volume           │  │
-│  │                   │        │                              │  │
-│  │  NVMe SSD on host │        │  Network-attached block dev  │  │
-│  │  Physically local │        │  Survives stop/start          │  │
-│  │  Lost on stop/    │        │  AZ-scoped                   │  │
-│  │  terminate        │        │  Can snapshot to S3          │  │
-│  └───────────────────┘        └──────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    accTitle: Instance Store vs EBS
+    accDescr: Flowchart (lr) showing EC2 Instance, Instance Store NVMe SSD on host Physically local Lost on stop/terminate, EBS Volume Network-attached block device Survives stop/start AZ-scoped Snapshot to S3
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph EC2["EC2 Instance"]
+        direction LR
+        IS["Instance Store<br/>NVMe SSD on host<br/>Physically local<br/>Lost on stop/terminate"]:::fail
+        EBS["EBS Volume<br/>Network-attached block device<br/>Survives stop/start<br/>AZ-scoped<br/>Snapshot to S3"]:::ok
+    end
+
+    SCRATCH["Scratch space<br/>Caches, temp files<br/>Ephemeral shuffle data"]:::fail
+    PERSIST["OS disk, databases<br/>Stateful application data"]:::ok
+
+    IS --> SCRATCH
+    EBS --> PERSIST
 ```
 
 | Property | Instance Store | EBS |
@@ -105,15 +112,29 @@ Each volume type targets a distinct workload class. The table below includes act
 
 EBS performance has three independent axes. A workload can max out on any one of them:
 
-```
-IOPS (ops/sec)      ──────── random small IO   (4 KiB – 16 KiB)
-Throughput (MiB/s)  ──────── sequential large IO (64 KiB – 1 MiB)
-Latency (ms)        ──────── round-trip time for a single IO op
+```mermaid
+flowchart TD
+    accTitle: Performance Mental Model
+    accDescr: Flowchart (td) showing IO Workload, VolumeQueueLength high, IOPS at ceiling
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-Bottleneck diagnosis:
-  High VolumeQueueLength + normal IOPS  → volume saturated at throughput
-  Low IOPS + low throughput → maybe workload is blocked on kernel or app
-  High IOPS at ceiling      → provision more IOPS on gp3/io2
+    WL["IO Workload"]:::step
+    CHECK_Q{"VolumeQueueLength<br/>high?"}:::decesion
+    CHECK_IOPS{"IOPS at<br/>ceiling?"}:::decesion
+    THROUGHPUT["Throughput bottleneck<br/>Large sequential IO<br/>Saturating MiB/s limit"]:::fail
+    IOPS_SAT["IOPS bottleneck<br/>Random small IO<br/>Provision more IOPS (gp3/io2)"]:::fail
+    APP["Application or<br/>kernel bottleneck<br/>(not a volume issue)"]:::ok
+
+    WL --> CHECK_Q
+    CHECK_Q -- "Yes, but IOPS normal" --> THROUGHPUT
+    CHECK_Q -- "Yes, and IOPS high" --> IOPS_SAT
+    CHECK_Q -- "No" --> CHECK_IOPS
+    CHECK_IOPS -- "No" --> APP
+    CHECK_IOPS -- "Yes" --> IOPS_SAT
 ```
 
 **Practical profiling before resizing:**
@@ -331,11 +352,22 @@ aws ec2 delete-volume \\
 
 `io1` and `io2` volumes support **Multi-Attach**, allowing one volume to be attached to up to 16 Nitro instances simultaneously within the same AZ.
 
-```
-io2 volume (MultiAttach enabled)
-  ├── EC2 node-01 (AZ-a)
-  ├── EC2 node-02 (AZ-a)
-  └── EC2 node-03 (AZ-a)
+```mermaid
+flowchart TD
+    accTitle: Multi-Attach: Sharing a Volume Across Instances
+    accDescr: Flowchart (td) showing AZ-a, AZ-a, AZ-a
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    VOL[\"io2 Volume\<br/>Multi-Attach enabled\<br/>Same AZ\"]:::ok
+    N1[\"EC2 node-01 (AZ-a)\"]:::step
+    N2[\"EC2 node-02 (AZ-a)\"]:::step
+    N3[\"EC2 node-03 (AZ-a)\"]:::step
+    FS[\"Cluster-aware filesystem\<br/>(OCFS2 / GFS2 required)\"]:::ok
+
+    VOL --> N1 & N2 & N3
+    N1 & N2 & N3 --> FS
 ```
 
 **Requirements and limits:**
@@ -355,12 +387,26 @@ Attaching a standard ext4 volume to two instances simultaneously will corrupt da
 
 EBS snapshots are **incremental**, stored in S3. Only changed blocks are stored after the first full snapshot, keeping storage costs proportional to churn rather than volume size.
 
-```
-Snapshot 1 (full):    [AAAA BBBB CCCC]
-Snapshot 2 (incr):    [     BBBB'    ]  ← only changed B blocks
-Snapshot 3 (incr):    [AAAA'         ]  ← only changed A blocks
+```mermaid
+flowchart LR
+    accTitle: Snapshots: Backup, Recovery, and Automation
+    accDescr: Flowchart (lr) showing snapshot store, full, incremental
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-Restoring to snap-3 = S1 base + S2 deltas + S3 deltas
+    subgraph S3["Amazon S3 (snapshot store)"]
+        SN1["Snapshot 1 (full)<br/>Blocks: A B C"]:::ok
+        SN2["Snapshot 2 (incremental)<br/>Changed: B'"]:::ok
+        SN3["Snapshot 3 (incremental)<br/>Changed: A'"]:::ok
+    end
+    VOL["EBS Volume"]:::step
+    RESTORE["Restored Volume<br/>= S1 base + S2 delta + S3 delta"]:::ok
+
+    VOL -- "Daily snapshot" --> SN1
+    SN1 -- "+day 2 changes" --> SN2
+    SN2 -- "+day 3 changes" --> SN3
+    SN3 -- "aws ec2 create-volume<br/>--snapshot-id" --> RESTORE
 ```
 
 <CodeTabs tabs={[
@@ -454,11 +500,27 @@ EBS encryption is transparent to applications — IO is encrypted in transit bet
 
 ### Key Model
 
-```
-Volume encrypt options:
-  1. AWS managed key  (aws/ebs)      – default, no cost, less control
-  2. Customer managed key (CMK)      – full key policy control, audit trail
-  3. Key per environment/account     – strong isolation boundary
+```mermaid
+flowchart TD
+    accTitle: Key Model
+    accDescr: Flowchart (td) showing EC2 Instance, AWS KMS, DEK
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    EC2["EC2 Instance"]:::step
+    KMS["AWS KMS"]:::step
+    DEK["Data Encryption Key (DEK)<br/>Generated per volume"]:::ok
+    EBS_BLOCKS["EBS Storage Blocks<br/>(AES-256 encrypted at rest)"]:::ok
+    CMK_AWS["AWS Managed Key<br/>aws/ebs — free, automatic"]:::ok
+    CMK_CUST["Customer Managed Key<br/>Full key policy control<br/>Audit trail, rotation"]:::ok
+
+    EC2 -- "IO write" --> DEK
+    DEK -- "Encrypted with" --> CMK_AWS
+    DEK -- "OR encrypted with" --> CMK_CUST
+    KMS --> CMK_AWS & CMK_CUST
+    DEK -- "Encrypts" --> EBS_BLOCKS
 ```
 
 <CodeTabs tabs={[
@@ -595,11 +657,21 @@ sudo mount /dev/md0 /data-stripe
 
 ### Root + Data Volume Separation
 
-```
-EC2 Instance
-  ├── /dev/nvme0n1  – Root (OS, binaries)    gp3 / 20-50 GiB
-  ├── /dev/nvme1n1  – App data              gp3 with tuned IOPS
-  └── /dev/nvme2n1  – DB data/log           io2 if high durability needed
+```mermaid
+flowchart LR
+    accTitle: Root + Data Volume Separation
+    accDescr: Flowchart (lr) showing EC2 Instance, /dev/nvme0n1 Root OS binaries gp3 / 2050 GiB, /dev/nvme1n1 App data gp3 tuned IOPS
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    EC2["EC2 Instance"]:::step
+    ROOT["/dev/nvme0n1<br/>Root — OS & binaries<br/>gp3 / 20–50 GiB"]:::ok
+    APP["/dev/nvme1n1<br/>App data<br/>gp3 tuned IOPS"]:::ok
+    DB["/dev/nvme2n1<br/>DB data & log<br/>io2 — 99.999% durability"]:::fail
+
+    EC2 --> ROOT & APP & DB
 ```
 
 Separating concerns lets you:

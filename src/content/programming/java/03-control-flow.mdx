@@ -1,0 +1,147 @@
+---
+title: "Control Flow"
+description: "if, switch, loops, and how to direct program execution in Java"
+order: 3
+duration: 7
+tags: ["control-flow", "loops", "conditionals"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+
+Control flow determines the order in which your code executes. Java gives you a familiar set of tools — conditionals, loops, and switches — with a few modern additions worth knowing.
+
+<KeyPoints>
+- When to use `if/else if/else` vs modern switch expressions
+- The four loop types and when each is the right choice
+- How `break` and `continue` modify loop flow
+- The ternary operator for compact conditional expressions
+</KeyPoints>
+
+---
+
+## Choosing the Right Loop
+
+```mermaid
+flowchart TD
+    accTitle: Choosing the Right Java Loop
+    accDescr: Decision flowchart for selecting between for-each, classic for, do-while, and while loops. Choose for-each when iterating a collection, for when the iteration count is known, do-while when the body must run at least once, and while for all other conditions.
+    classDef q   fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ans fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Q1{"fa:fa-circle-question Iterating over<br/>a collection/array?"}:::q
+    Q2{"fa:fa-circle-question Know the count<br/>in advance?"}:::q
+    Q3{"fa:fa-circle-question Body must run<br/>at least once?"}:::q
+
+    FOREACH["fa:fa-list for-each<br/>for (x : collection)"]:::ans
+    FOR["fa:fa-repeat Classic for loop<br/>for (int i = 0; i &lt; n; i++)"]:::ans
+    DOWHILE["fa:fa-rotate-right do-while<br/>do { ... } while (cond)"]:::ans
+    WHILE["fa:fa-arrows-rotate while<br/>while (cond) { ... }"]:::ans
+
+    Q1 -->|"Yes"| FOREACH
+    Q1 -->|"No"| Q2
+    Q2 -->|"Yes"| FOR
+    Q2 -->|"No"| Q3
+    Q3 -->|"Yes"| DOWHILE
+    Q3 -->|"No"| WHILE
+```
+
+## if / else if / else
+```java
+int score = 85;
+
+if (score >= 90) {
+    System.out.println("A");
+} else if (score >= 80) {
+    System.out.println("B");
+} else if (score >= 70) {
+    System.out.println("C");
+} else {
+    System.out.println("F");
+}
+```
+
+## Switch Expressions (Java 14+)
+
+The traditional `switch` statement is verbose and error-prone. The modern switch expression is cleaner:
+```java
+String day = "MONDAY";
+
+String type = switch (day) {
+    case "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY" -> "Weekday";
+    case "SATURDAY", "SUNDAY" -> "Weekend";
+    default -> "Unknown";
+};
+```
+
+Note the `->` arrow syntax — no fall-through, no `break` needed.
+
+## for Loop
+```java
+for (int i = 0; i < 5; i++) {
+    System.out.println(i);
+}
+```
+
+## Enhanced for Loop (for-each)
+
+Use this whenever you're iterating over a collection or array — it's cleaner and less error-prone:
+```java
+String[] languages = {"Java", "Rust", "Go"};
+
+for (String lang : languages) {
+    System.out.println(lang);
+}
+```
+
+## while and do-while
+```java
+// while — checks condition before each iteration
+int i = 0;
+while (i < 3) {
+    System.out.println(i);
+    i++;
+}
+
+// do-while — always runs at least once
+int j = 0;
+do {
+    System.out.println(j);
+    j++;
+} while (j < 3);
+```
+
+## break and continue
+```java
+for (int i = 0; i < 10; i++) {
+    if (i == 3) continue;  // skip 3
+    if (i == 7) break;     // stop at 7
+    System.out.println(i);
+}
+// prints: 0 1 2 4 5 6
+```
+
+## Ternary Operator
+
+A compact one-liner for simple conditionals:
+```java
+int age = 20;
+String status = age >= 18 ? "adult" : "minor";
+```
+
+<Callout type="warning" title="Avoid Nesting Ternaries">
+  `a ? b ? c : d : e` is legal but unreadable. Use an `if/else` the moment there's more than one level of nesting.
+</Callout>
+
+<Quiz
+  question="Which loop type guarantees its body executes at least once?"
+  options={[
+    { label: "for" },
+    { label: "while" },
+    { label: "do-while", correct: true },
+    { label: "for-each" },
+  ]}
+  explanation="do-while evaluates the condition after the body, so the body always runs at least once regardless of whether the condition is initially true."
+/>

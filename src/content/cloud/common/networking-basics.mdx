@@ -4,14 +4,12 @@ description: "Virtual networks, subnets, routing, firewalls, NAT, and availabili
 order: 2
 duration: 20
 tags: ["networking", "vpc", "vnet", "subnets", "routing", "fundamentals"]
-sharedWith: ["aws", "azure"]
+sharedWith: ["aws", "azure", "gcp"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
 import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 import Quiz from '../../../components/mdx/Quiz.astro';
-
-# Cloud Networking Basics
 
 Every resource you deploy in the cloud lives inside a network. That network is a software-defined construct — you define it, you control it, and it determines what can talk to what. Understanding these networking fundamentals is essential before deploying anything on AWS or Azure. The concepts on this page are identical across both cloud providers; only the names differ, and those differences are covered in the provider-specific lessons.
 
@@ -33,12 +31,19 @@ When you create an account on any cloud provider, your resources don't share a f
 
 ```mermaid
 flowchart TD
-    INTERNET["🌐 Internet"]
-    IGW["Internet Gateway / NAT GW"]
-    VPC["Virtual Network\n10.0.0.0/16"]
-    PUB["Public Subnet\n10.0.1.0/24\nWeb tier"]
-    APP["Private Subnet\n10.0.2.0/24\nApp tier"]
-    DB["Private Subnet\n10.0.3.0/24\nData tier"]
+    accTitle: The Virtual Network: Your Private Space in the Cloud
+    accDescr: Flowchart (td) showing Internet, Internet Gateway / NAT GW, Virtual Network 10.0.0.0/16
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    INTERNET["fa:fa-globe Internet"]:::step
+    IGW["Internet Gateway / NAT GW"]:::step
+    VPC["Virtual Network<br/>10.0.0.0/16"]:::step
+    PUB["Public Subnet<br/>10.0.1.0/24<br/>Web tier"]:::ok
+    APP["Private Subnet<br/>10.0.2.0/24<br/>App tier"]:::ok
+    DB["Private Subnet<br/>10.0.3.0/24<br/>Data tier"]:::fail
 
     INTERNET --> IGW
     IGW --> PUB
@@ -86,24 +91,31 @@ Production architectures almost universally use three subnet tiers per Availabil
 
 ```mermaid
 flowchart TD
-    INTERNET["🌐 Internet"]
-    IGW["Internet Gateway"]
-    NAT["NAT Gateway\n(in public subnet)"]
+    accTitle: The Three-Tier Subnet Model
+    accDescr: Flowchart (td) showing Internet, Internet Gateway, in public subnet
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    INTERNET["fa:fa-globe Internet"]:::step
+    IGW["Internet Gateway"]:::step
+    NAT["NAT Gateway<br/>(in public subnet)"]:::step
 
     subgraph PUB_TIER["Public Tier"]
-        LB["Load Balancer"]
-        BASTION["Bastion Host (optional)"]
+        LB["Load Balancer"]:::ok
+        BASTION["Bastion Host (optional)"]:::ok
     end
 
     subgraph APP_TIER["Private — App Tier"]
-        API["API Servers"]
-        WORKERS["Background Workers"]
+        API["API Servers"]:::ok
+        WORKERS["Background Workers"]:::ok
     end
 
     subgraph DATA_TIER["Private — Data Tier"]
-        DB["Database"]
-        CACHE["Cache"]
-        SECRETS["Secrets Store"]
+        DB["Database"]:::fail
+        CACHE["Cache"]:::fail
+        SECRETS["Secrets Store"]:::fail
     end
 
     INTERNET --> IGW --> LB
@@ -130,12 +142,20 @@ Every subnet has a **route table** that tells the cloud where to send packets. A
 
 ```mermaid
 flowchart TD
-    PACKET["Incoming packet\nDestination: 8.8.8.8"]
-    RT["Route Table\nEvaluates: most-specific match wins"]
-    LOCAL["10.0.0.0/16\n→ local (stay inside VPC)"]
-    DEFAULT["0.0.0.0/0\n→ Internet Gateway"]
-    PRIV["Private subnet\n0.0.0.0/0\n→ NAT Gateway"]
-    DROP["No match → DROP"]
+    accTitle: Routing Tables: Directing Traffic
+    accDescr: Flowchart (td) showing Incoming packet Destination: 8.8.8.8, Route Table Evaluates: most-specific match wins, stay inside VPC
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    PACKET["Incoming packet<br/>Destination: 8.8.8.8"]:::step
+    RT["Route Table<br/>Evaluates: most-specific match wins"]:::decesion
+    LOCAL["10.0.0.0/16<br/>→ local (stay inside VPC)"]:::ok
+    DEFAULT["0.0.0.0/0<br/>→ Internet Gateway"]:::ok
+    PRIV["Private subnet<br/>0.0.0.0/0<br/>→ NAT Gateway"]:::ok
+    DROP["No match → DROP"]:::fail
 
     PACKET --> RT
     RT --> LOCAL
@@ -162,12 +182,20 @@ Cloud firewalls are **stateful** — if you allow a connection inbound, the retu
 
 ```mermaid
 flowchart TD
-    PKT["Packet arrives"]
-    CONN_TBL{"In connection\ntracking table?"}
-    RULE_CHK{"Matches an\nallow rule?"}
-    ALLOW["✅ Allow packet"]
-    DENY["❌ Drop packet"]
-    LOG["Log and drop"]
+    accTitle: Stateful Firewalls: Security Groups and NSGs
+    accDescr: Flowchart (td) showing Packet arrives, In connection tracking table, Matches an allow rule
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    PKT["Packet arrives"]:::step
+    CONN_TBL{"In connection<br/>tracking table?"}:::decesion
+    RULE_CHK{"Matches an<br/>allow rule?"}:::decesion
+    ALLOW["fa:fa-check Allow packet"]:::ok
+    DENY["fa:fa-xmark Drop packet"]:::fail
+    LOG["Log and drop"]:::fail
 
     PKT --> CONN_TBL
     CONN_TBL -- "Yes (return traffic)" --> ALLOW
@@ -181,12 +209,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    REQ["New connection request"]
-    DEFAULT{"Default rule?"}
-    EXPLICIT{"Explicit allow\nexists?"}
-    ALLOW_A["✅ Allow"]
-    DENY_A["❌ Deny (implicit)"]
-    DENY_B["❌ Deny (explicit default)"]
+    accTitle: Stateful Firewalls: Security Groups and NSGs
+    accDescr: Flowchart (td) showing New connection request, Default rule, Explicit allow exists
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REQ["New connection request"]:::step
+    DEFAULT{"Default rule?"}:::decesion
+    EXPLICIT{"Explicit allow<br/>exists?"}:::decesion
+    ALLOW_A["fa:fa-check Allow"]:::ok
+    DENY_A["fa:fa-xmark Deny (implicit)"]:::fail
+    DENY_B["fa:fa-xmark Deny (explicit default)"]:::fail
 
     REQ --> DEFAULT
     DEFAULT -- "Deny all (correct)" --> EXPLICIT
@@ -217,17 +253,23 @@ Servers in private subnets need outbound internet access for things like package
 
 ```mermaid
 flowchart TD
-    PRIV["Private server\n10.0.2.10"]
-    NAT["NAT Gateway\nPublic subnet, 52.X.X.X"]
-    IGW["Internet Gateway"]
-    INTERNET["🌐 Internet target"]
-    RESP["Response packet\nback to 52.X.X.X"]
+    accTitle: NAT: Outbound-Only Internet Access for Private Subnets
+    accDescr: Flowchart (td) showing Private server 10.0.2.10, NAT Gateway Public subnet, 52.X.X.X, Internet Gateway
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    PRIV -- "1. Packet to 8.8.8.8\nsource: 10.0.2.10" --> NAT
-    NAT -- "2. Rewrites source\nto public IP 52.X.X.X" --> IGW
+    PRIV["Private server<br/>10.0.2.10"]:::ok
+    NAT["NAT Gateway<br/>Public subnet, 52.X.X.X"]:::step
+    IGW["Internet Gateway"]:::step
+    INTERNET["fa:fa-globe Internet target"]:::step
+    RESP["Response packet<br/>back to 52.X.X.X"]:::ok
+
+    PRIV -- "1. Packet to 8.8.8.8<br/>source: 10.0.2.10" --> NAT
+    NAT -- "2. Rewrites source<br/>to public IP 52.X.X.X" --> IGW
     IGW --> INTERNET
     INTERNET --> RESP
-    RESP -- "3. NAT rewrites back\nforwards to 10.0.2.10" --> PRIV
+    RESP -- "3. NAT rewrites back<br/>forwards to 10.0.2.10" --> PRIV
 ```
 
 The internet target sees the NAT Gateway's public IP, not the private server's IP. The private server's address is never exposed externally. Responses are tracked by the NAT's connection table and routed back correctly.
@@ -246,24 +288,31 @@ A **region** is a geographic area (e.g. "US East Virginia"). Each region contain
 
 ```mermaid
 flowchart TD
-    REGION["Cloud Region\n(e.g. us-east-1)"]
+    accTitle: Availability Zones: Building for Fault Tolerance
+    accDescr: Flowchart (td) showing e.g. us-east-1, Availability Zone A, Public Subnet A
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REGION["Cloud Region<br/>(e.g. us-east-1)"]:::step
 
     subgraph AZ1["Availability Zone A"]
-        S1["Public Subnet A"]
-        S2["App Subnet A"]
-        S3["Data Subnet A"]
+        S1["Public Subnet A"]:::ok
+        S2["App Subnet A"]:::ok
+        S3["Data Subnet A"]:::fail
     end
 
     subgraph AZ2["Availability Zone B"]
-        S4["Public Subnet B"]
-        S5["App Subnet B"]
-        S6["Data Subnet B"]
+        S4["Public Subnet B"]:::ok
+        S5["App Subnet B"]:::ok
+        S6["Data Subnet B"]:::fail
     end
 
     subgraph AZ3["Availability Zone C"]
-        S7["Public Subnet C"]
-        S8["App Subnet C"]
-        S9["Data Subnet C"]
+        S7["Public Subnet C"]:::ok
+        S8["App Subnet C"]:::ok
+        S9["Data Subnet C"]:::fail
     end
 
     REGION --> AZ1

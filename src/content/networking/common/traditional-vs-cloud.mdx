@@ -1,0 +1,342 @@
+---
+title: "Traditional vs Cloud Networking"
+description: "How every physical networking layer — switches, VLANs, firewalls, load balancers, and WAN links — maps to its cloud equivalent, and what changes when the network becomes an API."
+order: 2
+duration: 20
+tags: ["sdn", "networking", "vpc", "cloud", "traditional"]
+sharedWith: ["cloud", "networking"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+Traditional data centre networking is built around physical hardware: switches, routers, firewalls, and load balancers that you rack, cable, and configure with CLI commands. Cloud networking replaces every one of those boxes with a software abstraction exposed via API. The underlying physics still exists — electrons still flow through fibre — but you never touch it. This lesson maps the physical world to the cloud world so the abstractions make sense.
+
+<KeyPoints>
+- How VLANs map to VPCs and subnets in cloud networking
+- How hardware firewalls and ACLs map to Security Groups and NSGs
+- How physical load balancers map to cloud ALB/Application Gateway
+- How MPLS and leased-line WAN links map to Direct Connect / ExpressRoute / VPN
+- Why software-defined networking changes provisioning from days to seconds
+- What remains the same: IP addressing, routing, TCP/IP, and BGP
+</KeyPoints>
+
+---
+
+## Physical to Virtual: The Full Stack
+
+```mermaid
+flowchart TD
+    accTitle: Physical to Virtual: The Full Stack
+    accDescr: Flowchart (td) showing BGP peering, ASA, Palo Alto, Nexus, Catalyst
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph PHYS["Traditional Data Centre"]
+        P1["WAN / MPLS link"]:::fail
+        P2["Edge router (BGP peering)"]:::fail
+        P3["Firewall appliance (ASA, Palo Alto)"]:::fail
+        P4["Core switch (Nexus, Catalyst)"]:::fail
+        P5["Access switch + VLANs"]:::fail
+        P6["Hardware load balancer (F5)"]:::fail
+        P7["Physical servers with NICs"]:::fail
+    end
+
+    subgraph CLOUD["Cloud (AWS / Azure)"]
+        C1["Direct Connect / ExpressRoute\<br/>or IPSec VPN Gateway"]:::ok
+        C2["Transit Gateway / Virtual WAN"]:::ok
+        C3["Network Firewall / Azure Firewall\<br/>or Security Group / NSG"]:::ok
+        C4["VPC / VNet routing table"]:::ok
+        C5["Subnets (public/private) + route tables"]:::ok
+        C6["ALB / Application Gateway"]:::ok
+        C7["EC2 / Azure VM with virtual NIC"]:::ok
+    end
+
+    P1 --> C1
+    P2 --> C2
+    P3 --> C3
+    P4 --> C4
+    P5 --> C5
+    P6 --> C6
+    P7 --> C7
+```
+
+---
+
+## VLANs → VPCs and Subnets
+
+In a physical network, **VLANs** (IEEE 802.1Q) separate traffic into isolated Layer 2 broadcast domains. A trunk port carries multiple VLANs between switches; access ports connect endpoints to one VLAN.
+
+Cloud networking lifts isolation to Layer 3: a **VPC** (AWS) or **VNet** (Azure) is an isolated IP address space. Subnets within it are analogous to VLANs, but routing between them is handled by the cloud's virtual router — no spanning tree, no broadcast storms, no trunk negotiation.
+
+```mermaid
+flowchart TD
+    accTitle: VLANs → VPCs and Subnets
+    accDescr: Flowchart (td) showing L2 isolated, cloud-managed, automatic
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph TRAD["Traditional: VLANs"]
+        SW["Managed switch"]:::fail
+        V10["VLAN 10: Web servers (L2 isolated)"]:::step
+        V20["VLAN 20: App servers"]:::step
+        V30["VLAN 30: Database servers"]:::step
+        ROUTER["Router-on-a-stick\<br/>or L3 switch\<br/>Inter-VLAN routing"]:::fail
+        SW --> V10 & V20 & V30
+        V10 & V20 & V30 --> ROUTER
+    end
+
+    subgraph CLOUD["Cloud: VPC / VNet"]
+        VPC["VPC / VNet\<br/>10.0.0.0/16"]:::ok
+        PUB["Public subnet\<br/>10.0.1.0/24"]:::ok
+        PRIV["Private subnet\<br/>10.0.2.0/24"]:::ok
+        DATA["Private data subnet\<br/>10.0.3.0/24"]:::ok
+        VRT["Virtual router\<br/>(cloud-managed, automatic)"]:::ok
+        VPC --> PUB & PRIV & DATA
+        PUB & PRIV & DATA --> VRT
+    end
+```
+
+**Key differences:**
+- VLANs are Layer 2 — hosts in the same VLAN share a broadcast domain. Subnets are Layer 3 — every host routes, no broadcasts.
+- VLAN IDs (1–4094) are local to the switch fabric. VPCs are globally isolated by default — no traffic crosses between them without peering or a gateway.
+- Changing VLAN membership requires switch CLI access. Changing subnet routes is an API call.
+
+---
+
+## ACLs and Firewalls → Security Groups and NSGs
+
+Traditional networks rely on **stateless ACLs** on routers and **stateful firewalls** as a separate appliance. Cloud replaces both with a distributed, hypervisor-level construct.
+
+```mermaid
+flowchart TD
+    accTitle: ACLs and Firewalls → Security Groups and NSGs
+    accDescr: Flowchart (td) showing Checkpoint, Palo Alto, runs in hypervisor, not a box, AWS
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph TRAD_FW["Traditional Firewall"]
+        EXT_PKT["Inbound packet"]:::fail
+        FW_HW["Hardware firewall\<br/>(Checkpoint, Palo Alto)\<br/>Stateful inspection"]:::step
+        ACL["Router ACL\<br/>Stateless per-interface"]:::step
+        VLAN_FW["VLAN boundary"]:::step
+        SERVER["Server"]:::ok
+        EXT_PKT --> FW_HW --> ACL --> VLAN_FW --> SERVER
+    end
+
+    subgraph CLOUD_FW["Cloud Security Groups / NSG"]
+        PKT["Inbound packet"]:::fail
+        SG["Security Group / NSG\<br/>(runs in hypervisor, not a box)\<br/>Stateful: return traffic auto-allowed"]:::step
+        NACL["Network ACL (AWS)\<br/>or Subnet NSG (Azure)\<br/>Stateless subnet-level filter"]:::step
+        VM["VM / ECS task"]:::ok
+        PKT --> SG --> NACL --> VM
+    end
+```
+
+| Aspect | Physical Firewall | Security Group / NSG |
+|---|---|---|
+| Form factor | Dedicated appliance | Distributed hypervisor rule engine |
+| Rules | Ordered ACL (first match) | Allow-only, last-deny-all, evaluated all rules |
+| State | Stateful (hardware) | Stateful (return traffic auto-permitted) |
+| Scope | Perimeter or zone boundary | Per resource (SG) or per subnet (NSG) |
+| Update lag | Seconds–minutes via CLI/GUI | Milliseconds via API |
+| Failure mode | Appliance failure = network down | Distributed — no single point |
+
+<Callout type="tip" title="Security Groups Are Not Firewalls at the Perimeter">
+Security groups apply at the instance/NIC level. Every VM in a VPC has its own SG evaluation. There is no packet flow between VMs on the same subnet that bypasses security group evaluation — the hypervisor enforces it on every NIC.
+</Callout>
+
+---
+
+## Load Balancers: Hardware to Managed Service
+
+Physical load balancers like the **F5 BIG-IP** or **Citrix ADC** are expensive, capacity-limited appliances. Cloud load balancers are managed services that scale automatically.
+
+```mermaid
+flowchart LR
+    accTitle: Load Balancers: Hardware to Managed Service
+    accDescr: Flowchart (lr) showing VIP
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    CLIENTS["Internet Clients"]:::ok
+
+    subgraph TRAD_LB["Traditional"]
+        VIP["Virtual IP (VIP)"]:::fail
+        F5["F5 BIG-IP\<br/>SSL offload, health checks"]:::fail
+        POOL["Server pool"]:::fail
+        VIP --> F5 --> POOL
+    end
+
+    subgraph CLOUD_LB["Cloud Managed LB"]
+        ALB["AWS ALB / Azure Application Gateway\<br/>L7: path/host routing\<br/>auto-scales, managed TLS"]:::ok
+        NLB["AWS NLB / Azure Load Balancer\<br/>L4: TCP/UDP routing\<br/>millisecond latency"]:::ok
+        TGS["Target EC2s / VMs / containers"]:::ok
+        ALB & NLB --> TGS
+    end
+
+    CLIENTS --> TRAD_LB
+    CLIENTS --> CLOUD_LB
+```
+
+| Feature | Hardware LB (F5) | Cloud ALB |
+|---|---|---|
+| TLS/SSL offload | Yes (hardware crypto) | Yes (managed certs via ACM/Key Vault) |
+| Horizontal scaling | Buy bigger hardware | Auto-scales behind the scenes |
+| Health checks | Configurable per pool | Configurable; affects DNS/routing |
+| Cost model | CapEx + licensing | Pay-per-LCU (usage) |
+| WAF integration | Separate module | Native (AWS WAF, Azure WAF) |
+
+---
+
+## WAN: MPLS → Direct Connect / ExpressRoute
+
+Corporate networks traditionally used **MPLS** (Multiprotocol Label Switching) leased lines or Frame Relay for guaranteed bandwidth between sites. Cloud connectivity offers equivalent dedicated links managed by the cloud provider.
+
+```mermaid
+flowchart LR
+    accTitle: WAN: MPLS → Direct Connect / ExpressRoute
+    accDescr: Flowchart (lr) showing IPSec/BGP
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ONPREM["On-Premises Data Centre"]:::step
+
+    subgraph TRAD_WAN["Traditional WAN"]
+        MPLS["MPLS Leased Line\<br/>Guaranteed bandwidth\<br/>No public internet"]:::fail
+        CE["Customer Edge Router"]:::fail
+        PE["Provider Edge Router"]:::fail
+        ONPREM --> CE --> MPLS --> PE
+    end
+
+    subgraph CLOUD_CONN["Cloud Dedicated Connectivity"]
+        DX["AWS Direct Connect\<br/>1Gbps or 10Gbps\<br/>Same-region: 10Gbps 1ms latency"]:::ok
+        ER["Azure ExpressRoute\<br/>50Mbps to 100Gbps\<br/>Provider or colocation model"]:::ok
+        VPN["Site-to-Site VPN (IPSec/BGP)\<br/>Over public internet\<br/>Lower cost, higher latency"]:::ok
+        TGW["Transit Gateway / Virtual WAN\<br/>Hub for multiple VPCs/VNets"]:::ok
+    end
+
+    ONPREM --> DX & ER & VPN
+    DX & ER & VPN --> TGW
+```
+
+| Connectivity | Latency | Bandwidth | Cost | Use case |
+|---|---|---|---|---|
+| Site-to-Site VPN | ~20–50ms | Up to ~1.25 Gbps | Low | Non-latency-sensitive, lower traffic |
+| AWS Direct Connect | ~1–10ms | 1–100 Gbps | Higher | Production workloads, database replication |
+| Azure ExpressRoute | ~1–10ms | 50Mbps–100Gbps | Higher | Hybrid production workloads |
+| SD-WAN | Variable | Aggregate multiple links | Medium | Branch offices, flexible routing |
+
+---
+
+## Routing: Static Config to Programmable Tables
+
+In physical networks, routing is configured statically (`ip route add`) or via dynamic protocols (`OSPF`, `BGP`) on individual routers. Cloud networking uses **route tables** — per-subnet routing policies controlled via API.
+
+<CodeTabs tabs={[
+  {
+    label: "Traditional (Linux router)",
+    lang: "bash",
+    code: `# Add a static route on a Linux router
+ip route add 10.20.0.0/16 via 192.168.1.1 dev eth0
+
+# Set default gateway
+ip route add default via 192.168.1.1
+
+# View routing table
+ip route show
+
+# OSPF config snippet (quagga/FRR)
+# router ospf
+#   network 10.0.0.0/8 area 0
+#   redistribute connected`
+  },
+  {
+    label: "AWS Route Table",
+    lang: "bash",
+    code: `# Create a route table
+aws ec2 create-route-table --vpc-id vpc-0abc123
+
+# Add a default route via Internet Gateway (public subnets)
+aws ec2 create-route \\
+  --route-table-id rtb-0abc123 \\
+  --destination-cidr-block 0.0.0.0/0 \\
+  --gateway-id igw-0abc123
+
+# Add a private route via NAT Gateway (private subnets)
+aws ec2 create-route \\
+  --route-table-id rtb-0private \\
+  --destination-cidr-block 0.0.0.0/0 \\
+  --nat-gateway-id nat-0abc123
+
+# Associate route table with subnet
+aws ec2 associate-route-table \\
+  --route-table-id rtb-0abc123 \\
+  --subnet-id subnet-0abc123`
+  },
+  {
+    label: "Azure Route Table (UDR)",
+    lang: "bash",
+    code: `# Create a user-defined route table
+az network route-table create \\
+  --resource-group rg-network \\
+  --name rt-private-subnet
+
+# Force all traffic through Azure Firewall (NVA)
+az network route-table route create \\
+  --resource-group rg-network \\
+  --route-table-name rt-private-subnet \\
+  --name DefaultViaFirewall \\
+  --address-prefix 0.0.0.0/0 \\
+  --next-hop-type VirtualAppliance \\
+  --next-hop-ip-address 10.0.0.4
+
+# Associate with subnet
+az network vnet subnet update \\
+  --resource-group rg-network \\
+  --vnet-name vnet-hub \\
+  --name snet-private \\
+  --route-table rt-private-subnet`
+  },
+]} />
+
+---
+
+## What Stays the Same
+
+Cloud networking abstracts the hardware but does **not** change the fundamental protocols:
+
+```mermaid
+flowchart TD
+    accTitle: What Stays the Same
+    accDescr: Flowchart (td) showing RFC 1918 private ranges, same hierarchy, same certs/CAs
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    SAME["Protocols unchanged in cloud"]:::ok
+    IP["IP addressing (RFC 1918 private ranges)"]:::ok
+    CIDR["CIDR subnetting"]:::ok
+    TCP["TCP 3-way handshake, congestion control"]:::ok
+    UDP["UDP for DNS, QUIC, media"]:::ok
+    BGP["BGP for Direct Connect / ExpressRoute peering"]:::step
+    DNS_P["DNS resolution (same hierarchy)"]:::ok
+    TLS_P["TLS handshake (same certs/CAs)"]:::ok
+
+    SAME --> IP & CIDR & TCP & UDP & BGP & DNS_P & TLS_P
+```
+
+<Callout type="info" title="Cloud Is Automation, Not New Protocols">
+A VPC is a virtual router + switch + firewall combined and exposed as an API. The packets inside still use Ethernet, IP, TCP, and all the same protocols as in a physical data centre. What cloud changes is the operational model: provisioning, changes, and scaling happen in milliseconds via code rather than hours via change management tickets.
+</Callout>

@@ -4,24 +4,22 @@ description: "Platform-agnostic security fundamentals for cloud systems: identit
 order: 3
 duration: 22
 tags: ["security", "fundamentals", "cloud", "iam", "networking"]
-sharedWith: ["aws", "azure"]
+sharedWith: ["aws", "azure", "gcp"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
 import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 import Quiz from '../../../components/mdx/Quiz.astro';
 
-These principles apply across cloud platforms. Learn them once, then map them to AWS, Azure, or any other provider.
+These principles apply across cloud platforms — AWS, Azure, and GCP all follow the same security model. Learn them once and map them to any provider.
 
-## What You Will Master
-
-By the end of this lesson, you should be able to:
-
-- Distinguish control-plane vs data-plane security responsibilities
-- Apply least privilege and segmentation as default architecture decisions
-- Build layered controls for prevention, detection, and response
-- Use a practical threat-modeling checklist to evaluate baseline cloud security posture
-- Identify and explain the most common cloud security failure patterns
+<KeyPoints>
+- How to distinguish control-plane vs data-plane security responsibilities
+- How to apply least privilege and segmentation as default architecture decisions
+- How to build layered controls for prevention, detection, and response
+- A practical threat-modeling checklist for evaluating baseline cloud security posture
+- The most common cloud security failure patterns and why they occur
+</KeyPoints>
 
 ---
 
@@ -31,17 +29,20 @@ Think in three continuous loops. All three must be active at all times:
 
 ```mermaid
 flowchart TD
-    P["🔒 Prevent\nIAM boundaries\nNetwork restrictions\nEncryption"]
-    D["🔍 Detect\nAudit logs\nAnomaly alerts\nChange monitoring"]
-    R["🚨 Respond\nContainment\nCredential rotation\nRecovery playbooks"]
+    accTitle: Security Design Mental Model
+    accDescr: Flowchart (td) showing Prevent IAM boundaries Network restrictions Encryption, Detect Audit logs Anomaly alerts Change monitoring, Respond Containment Credential rotation Recovery playbooks
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    P["fa:fa-lock Prevent<br/>IAM boundaries<br/>Network restrictions<br/>Encryption"]:::step
+    D["fa:fa-magnifying-glass Detect<br/>Audit logs<br/>Anomaly alerts<br/>Change monitoring"]:::ok
+    R["fa:fa-bell Respond<br/>Containment<br/>Credential rotation<br/>Recovery playbooks"]:::fail
 
     P --> D
     D --> R
     R --> P
-
-    style P fill:#1e3a5f,stroke:#3b82f6,color:#93c5fd
-    style D fill:#1a3a2a,stroke:#22c55e,color:#86efac
-    style R fill:#3a1a1a,stroke:#ef4444,color:#fca5a5
 ```
 
 A system that only prevents but never detects is blind the moment prevention fails. A system that detects but never has playbooks is paralysed under pressure.
@@ -54,12 +55,20 @@ Every secure system starts with controlling **who** can do **what** and **when**
 
 ```mermaid
 flowchart TD
-    Request["API Request"]
-    AuthN["Authentication\nWho are you?"]
-    AuthZ["Authorization\nWhat can you do?"]
-    Conditions["Conditions\nMFA? Network? Time?"]
-    Allowed["✅ Allowed"]
-    Denied["❌ Denied"]
+    accTitle: 1. Identity and Access Control
+    accDescr: Flowchart (td) showing API Request, Authentication Who are you, Authorization What can you do
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Request["API Request"]:::step
+    AuthN["Authentication<br/>Who are you?"]:::decesion
+    AuthZ["Authorization<br/>What can you do?"]:::decesion
+    Conditions["Conditions<br/>MFA? Network? Time?"]:::decesion
+    Allowed["fa:fa-check Allowed"]:::ok
+    Denied["fa:fa-xmark Denied"]:::fail
 
     Request --> AuthN
     AuthN -->|"Valid identity"| AuthZ
@@ -68,9 +77,6 @@ flowchart TD
     AuthZ -->|"No matching policy"| Denied
     Conditions -->|"All conditions met"| Allowed
     Conditions -->|"Condition failed"| Denied
-
-    style Allowed fill:#14532d,stroke:#22c55e,color:#86efac
-    style Denied fill:#7f1d1d,stroke:#ef4444,color:#fca5a5
 ```
 
 ### Key identity principles
@@ -91,15 +97,28 @@ A shared admin account used by multiple engineers provides zero accountability. 
 This is the single most impactful rule in cloud security. Overly permissive access is the leading cause of cloud data breaches.
 
 ```mermaid
-flowchart LR
-    W["What does this\nidentity ACTUALLY do?"]
-    M["What is the MINIMUM\npermission for that action?"]
-    S["What is the SMALLEST\nscope it needs?"]
-    Grant["Grant exactly that.\nNothing more."]
+flowchart TD
+    accTitle: The Principle of Least Privilege
+    accDescr: Decision flowchart showing how to correctly scope permissions by asking what an identity actually does, what the minimum action needed is, and what the smallest resource scope is — contrasting an over-privileged wildcard grant against a correctly scoped least-privilege grant
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    W --> M --> S --> Grant
+    TASK["Identity needs<br/>access to perform a task"]:::step
+    Q1{"What does it<br/>actually need to do?"}:::decesion
+    Q2{"What is the minimum<br/>action required?<br/>(read, not write)"}:::decesion
+    Q3{"What is the smallest<br/>resource scope?<br/>(one bucket, not all)"}:::decesion
 
-    style Grant fill:#14532d,stroke:#22c55e,color:#86efac
+    OVER["fa:fa-xmark Over-privileged<br/>Action: *<br/>Resource: *<br/>Full account exposure"]:::fail
+    GRANT["fa:fa-check Least-privilege grant<br/>Action: s3:GetObject<br/>Resource: arn:aws:s3:::my-bucket/*"]:::ok
+
+    TASK --> Q1
+    Q1 -->|"Skip — grant admin<br/>for convenience"| OVER
+    Q1 -->|"Answer all three<br/>questions carefully"| Q2
+    Q2 --> Q3
+    Q3 --> GRANT
 ```
 
 **Anti-pattern: Wildcard admin for convenience**
@@ -130,22 +149,24 @@ Not all components should communicate with each other. Network segmentation limi
 
 ```mermaid
 flowchart TD
-    Internet["🌍 Internet"]
-    Edge["Edge / Load Balancer\n(Public subnet)"]
-    App["Application Layer\n(Private subnet)"]
-    Data["Data Layer\n(Isolated subnet)"]
+    accTitle: 3. Network Segmentation and Trust Boundaries
+    accDescr: Flowchart (td) showing Internet, Public subnet, Private subnet
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    Internet -->|"HTTPS 443 ✅"| Edge
-    Internet -->|"Direct to app ❌"| App
-    Internet -->|"Direct to DB ❌"| Data
-    Edge -->|"App port ✅"| App
-    Edge -->|"Direct to DB ❌"| Data
-    App -->|"DB port ✅"| Data
+    Internet["fa:fa-globe Internet"]:::step
+    Edge["Edge / Load Balancer<br/>(Public subnet)"]:::step
+    App["Application Layer<br/>(Private subnet)"]:::ok
+    Data["Data Layer<br/>(Isolated subnet)"]:::fail
 
-    style Internet fill:#1f2937,stroke:#6b7280,color:#d1d5db
-    style Edge fill:#1e3a5f,stroke:#3b82f6,color:#93c5fd
-    style App fill:#1a3a2a,stroke:#22c55e,color:#86efac
-    style Data fill:#3a1a1a,stroke:#ef4444,color:#fca5a5
+    Internet -->|"HTTPS 443 ✓"| Edge
+    Internet -->|"Direct to app ✗"| App
+    Internet -->|"Direct to DB ✗"| Data
+    Edge -->|"App port ✓"| App
+    Edge -->|"Direct to DB ✗"| Data
+    App -->|"DB port ✓"| Data
 ```
 
 **Segmentation rules:**
@@ -166,20 +187,25 @@ Secure architectures deny everything by default and explicitly allow only what i
 
 ```mermaid
 flowchart TD
-    Traffic["Incoming traffic or request"]
-    ExplicitDeny{"Explicit DENY\nrule matches?"}
-    ExplicitAllow{"Explicit ALLOW\nrule matches?"}
-    DefaultDeny["❌ DENIED\n(no rule = deny)"]
-    Allowed["✅ ALLOWED"]
+    accTitle: 4. Default-Deny Architecture
+    accDescr: Flowchart (td) showing Incoming traffic or request, Explicit DENY rule matches, Explicit ALLOW rule matches
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Traffic["Incoming traffic or request"]:::step
+    ExplicitDeny{"Explicit DENY<br/>rule matches?"}:::decesion
+    ExplicitAllow{"Explicit ALLOW<br/>rule matches?"}:::decesion
+    DefaultDeny["fa:fa-xmark DENIED<br/>(no rule = deny)"]:::fail
+    Allowed["fa:fa-check ALLOWED"]:::ok
 
     Traffic --> ExplicitDeny
     ExplicitDeny -->|"Yes"| DefaultDeny
     ExplicitDeny -->|"No"| ExplicitAllow
     ExplicitAllow -->|"Yes"| Allowed
     ExplicitAllow -->|"No"| DefaultDeny
-
-    style DefaultDeny fill:#7f1d1d,stroke:#ef4444,color:#fca5a5
-    style Allowed fill:#14532d,stroke:#22c55e,color:#86efac
 ```
 
 Start closed. Open only what is required. Review and remove stale access regularly. An access rule that was temporary but never expired is an uncontrolled exposure.
@@ -192,21 +218,22 @@ No single control is sufficient. Layered controls ensure that if one layer fails
 
 ```mermaid
 flowchart TD
-    L1["Layer 1: Physical / Provider\nAWS/Azure managed"]
-    L2["Layer 2: Identity\nAuthN, AuthZ, MFA"]
-    L3["Layer 3: Network\nVPC/VNet, SG/NSG, Firewall"]
-    L4["Layer 4: Application\nInput validation, TLS, WAF"]
-    L5["Layer 5: Data\nEncryption at rest + in transit"]
-    L6["Layer 6: Monitoring\nLogs, alerts, anomaly detection"]
+    accTitle: 5. Defense in Depth
+    accDescr: Flowchart (td) showing Layer 1: Physical / Provider AWS/Azure managed, Layer 2: Identity AuthN, AuthZ, MFA, Layer 3: Network VPC/VNet, SG/NSG, Firewall
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    L1["Layer 1: Physical / Provider<br/>AWS/Azure managed"]:::step
+    L2["Layer 2: Identity<br/>AuthN, AuthZ, MFA"]:::step
+    L3["Layer 3: Network<br/>VPC/VNet, SG/NSG, Firewall"]:::ok
+    L4["Layer 4: Application<br/>Input validation, TLS, WAF"]:::step
+    L5["Layer 5: Data<br/>Encryption at rest + in transit"]:::decesion
+    L6["Layer 6: Monitoring<br/>Logs, alerts, anomaly detection"]:::fail
 
     L1 --> L2 --> L3 --> L4 --> L5 --> L6
-
-    style L1 fill:#1f2937,stroke:#6b7280,color:#d1d5db
-    style L2 fill:#1e3a5f,stroke:#3b82f6,color:#93c5fd
-    style L3 fill:#1a3a2a,stroke:#22c55e,color:#86efac
-    style L4 fill:#3a1a24,stroke:#a855f7,color:#d8b4fe
-    style L5 fill:#2a1a00,stroke:#f59e0b,color:#fde68a
-    style L6 fill:#3a1a1a,stroke:#ef4444,color:#fca5a5
 ```
 
 An attacker who bypasses identity controls still faces network barriers. An attacker who breaches the network still faces data encryption. An attacker who exfiltrates encrypted data still triggers anomaly alerts.
@@ -240,19 +267,21 @@ For every new system or significant change, work through these five questions be
 
 ```mermaid
 flowchart TD
-    Q1["1. What are the\nhighest-value assets?"]
-    Q2["2. Which identities\ncan reach them?"]
-    Q3["3. What network paths\nprovide access?"]
-    Q4["4. What single\nmisconfiguration creates\nmajor exposure?"]
-    Q5["5. How would we detect\nand contain that event?"]
+    accTitle: Practical Threat Modeling Starter
+    accDescr: Flowchart (td) showing 1. What are the highest-value assets, 2. Which identities can reach them, 3. What network paths provide access
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    Q1["1. What are the<br/>highest-value assets?"]:::step
+    Q2["2. Which identities<br/>can reach them?"]:::step
+    Q3["3. What network paths<br/>provide access?"]:::ok
+    Q4["4. What single<br/>misconfiguration creates<br/>major exposure?"]:::fail
+    Q5["5. How would we detect<br/>and contain that event?"]:::decesion
 
     Q1 --> Q2 --> Q3 --> Q4 --> Q5
-
-    style Q1 fill:#1f2937,stroke:#6b7280,color:#d1d5db
-    style Q2 fill:#1e3a5f,stroke:#3b82f6,color:#93c5fd
-    style Q3 fill:#1a3a2a,stroke:#22c55e,color:#86efac
-    style Q4 fill:#3a1a1a,stroke:#ef4444,color:#fca5a5
-    style Q5 fill:#2a1a00,stroke:#f59e0b,color:#fde68a
 ```
 
 These questions do not require a formal threat modelling methodology. They just require disciplined thinking before each deployment.

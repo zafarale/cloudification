@@ -1,0 +1,39 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+import { toTrackSlug } from '../../../lib/content-slugs';
+
+const lessons = await getCollection('cloud', ({ id }) => id.startsWith('gcp/'));
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/cloud/gcp/${toTrackSlug(lesson.id, 'gcp')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout
+  title="GCP"
+  description="Learn Google Cloud Platform from the ground up. Compute Engine, Cloud Storage, GKE, BigQuery, and building scalable cloud infrastructure on GCP."
+  keywords={['GCP tutorials', 'Google Cloud Platform', 'Compute Engine', 'Cloud Storage', 'GKE', 'BigQuery', 'cloud infrastructure']}
+  certifications={['Google Associate Cloud Engineer', 'Google Professional Cloud Architect', 'Google Cloud Digital Leader']}
+>
+  <PageHeader
+    title="Google Cloud Platform"
+    description="Google Cloud Platform from the ground up. Work through lessons in order — each builds on the last."
+    iconName="logos:google-cloud"
+    backHref="/cloud"
+    backLabel="Back to Cloud"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="green" />
+</BaseLayout>

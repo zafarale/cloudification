@@ -57,19 +57,26 @@ D   a  s  _  v5  _  Standard
 
 ```mermaid
 flowchart TD
-    START["What does the workload need?"]
+    accTitle: Choosing the Right VM Size
+    accDescr: Flowchart (td) showing What does the workload need, Web/API server or general app, Memory-intensive: SAP, large cache, in-memory DB
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    GENERAL{"Web/API server\nor general app?"}
-    MEMBOUND{"Memory-intensive:\nSAP, large cache,\nin-memory DB?"}
-    CPUBOUND{"CPU-intensive:\nbatch, analytics,\nrendering?"}
-    GPU_NEED{"ML training\nor GPU workload?"}
-    DEV{"Dev/test or\nvariable traffic?"}
+    START["What does the workload need?"]:::step
 
-    D_SERIES["D-series\nDsv5, Ddsv5\n(s = premium storage)"]
-    E_SERIES["E-series\nEsv5, Edsv5"]
-    F_SERIES["F-series\nFsv2, Fxmds"]
-    N_SERIES["N-series\nNC, ND, NV, NVads"]
-    B_SERIES["B-series\nBs, Bsv2 (burstable)"]
+    GENERAL{"Web/API server<br/>or general app?"}:::decesion
+    MEMBOUND{"Memory-intensive:<br/>SAP, large cache,<br/>in-memory DB?"}:::decesion
+    CPUBOUND{"CPU-intensive:<br/>batch, analytics,<br/>rendering?"}:::decesion
+    GPU_NEED{"ML training<br/>or GPU workload?"}:::decesion
+    DEV{"Dev/test or<br/>variable traffic?"}:::decesion
+
+    D_SERIES["D-series<br/>Dsv5, Ddsv5<br/>(s = premium storage)"]:::ok
+    E_SERIES["E-series<br/>Esv5, Edsv5"]:::ok
+    F_SERIES["F-series<br/>Fsv2, Fxmds"]:::ok
+    N_SERIES["N-series<br/>NC, ND, NV, NVads"]:::ok
+    B_SERIES["B-series<br/>Bs, Bsv2 (burstable)"]:::ok
 
     START --> GENERAL & MEMBOUND & CPUBOUND & GPU_NEED & DEV
     GENERAL --> D_SERIES
@@ -89,17 +96,24 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    WORKLOAD["Workload pattern?"]
+    accTitle: Pricing Models
+    accDescr: Flowchart (td) showing Workload pattern, Runs 24/7 or very predictable, Can tolerate eviction with 30s notice
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    STEADY{"Runs 24/7\nor very predictable?"}
-    INTERRUPTIBLE{"Can tolerate\neviction with 30s notice?"}
-    WINDOWS{"Running\nWindows Server\nor SQL Server?"}
-    COMMIT{"Can commit\n1 or 3 years?"}
+    WORKLOAD["Workload pattern?"]:::step
 
-    PAYG["Pay-As-You-Go\nPer-minute billing\nNo commitment\nFull price"]
-    SPOT["Spot VM\nUp to 90% discount\nEvicted when Azure needs capacity\nNo SLA"]
-    RESERVED["Reserved VM\n1-year: ~40% off\n3-year: ~60% off\nCommit to region + size family"]
-    HYBRID["Azure Hybrid Benefit\nBring existing Windows/SQL\nServer licenses\nUp to 49% additional savings"]
+    STEADY{"Runs 24/7<br/>or very predictable?"}:::decesion
+    INTERRUPTIBLE{"Can tolerate<br/>eviction with 30s notice?"}:::decesion
+    WINDOWS{"Running<br/>Windows Server<br/>or SQL Server?"}:::decesion
+    COMMIT{"Can commit<br/>1 or 3 years?"}:::decesion
+
+    PAYG["Pay-As-You-Go<br/>Per-minute billing<br/>No commitment<br/>Full price"]:::ok
+    SPOT["Spot VM<br/>Up to 90% discount<br/>Evicted when Azure needs capacity<br/>No SLA"]:::ok
+    RESERVED["Reserved VM<br/>1-year: ~40% off<br/>3-year: ~60% off<br/>Commit to region + size family"]:::ok
+    HYBRID["Azure Hybrid Benefit<br/>Bring existing Windows/SQL<br/>Server licenses<br/>Up to 49% additional savings"]:::ok
 
     WORKLOAD --> STEADY & INTERRUPTIBLE & WINDOWS
     STEADY --> COMMIT
@@ -125,16 +139,24 @@ Azure offers three different mechanisms for VM high availability. Choosing the w
 
 ```mermaid
 flowchart TD
-    HA["High Availability requirement?"]
+    accTitle: Availability Options
+    accDescr: Flowchart (td) showing High Availability requirement, Single VM sufficient, Region supports Availability Zones
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    SINGLE{"Single VM\nsufficient?"}
-    AZ_SUPP{"Region supports\nAvailability Zones?"}
-    SCALE{"Need auto-scaling\nor rolling upgrades?"}
+    HA["High Availability requirement?"]:::step
 
-    NONE["Single VM\n99.9% SLA with Premium SSD\nNo HA — use only for dev/test"]
-    AS["Availability Set\n2+ VMs across fault/update domains\n99.95% SLA\nProtects against rack + maintenance"]
-    AZ["Availability Zones\n2+ VMs across separate AZs\n99.99% SLA\nProtects against data centre failure"]
-    VMSS["Virtual Machine Scale Sets\nAuto-scales, integrates with AZs\n99.99% SLA\nRolling upgrade + health probes"]
+    SINGLE{"Single VM<br/>sufficient?"}:::decesion
+    AZ_SUPP{"Region supports<br/>Availability Zones?"}:::decesion
+    SCALE{"Need auto-scaling<br/>or rolling upgrades?"}:::decesion
+
+    NONE["Single VM<br/>99.9% SLA with Premium SSD<br/>No HA — use only for dev/test"]:::fail
+    AS["Availability Set<br/>2+ VMs across fault/update domains<br/>99.95% SLA<br/>Protects against rack + maintenance"]:::ok
+    AZ["Availability Zones<br/>2+ VMs across separate AZs<br/>99.99% SLA<br/>Protects against data centre failure"]:::ok
+    VMSS["Virtual Machine Scale Sets<br/>Auto-scales, integrates with AZs<br/>99.99% SLA<br/>Rolling upgrade + health probes"]:::ok
 
     HA --> SINGLE
     SINGLE -- "Yes (dev only)" --> NONE
@@ -157,13 +179,20 @@ Azure Managed Disks are the equivalent of AWS EBS. Azure manages the storage acc
 
 ```mermaid
 flowchart TD
-    DISK["Managed Disk Types"]
+    accTitle: Managed Disks
+    accDescr: Flowchart (td) showing Managed Disk Types, Ultra Disk Up to 160K IOPS Configurable IOPSthroughput Latency Highest cost No snapshot, no temp disk, Premium SSD v2 Up to 80K IOPS Sub-ms latency Flexible perf config Most capable for prod
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    ULTRA["Ultra Disk\nUp to 160K IOPS\nConfigurable IOPS+throughput\nLatency <1ms\nHighest cost\nNo snapshot, no temp disk"]
-    PREMIUM["Premium SSD v2\nUp to 80K IOPS\nSub-ms latency\nFlexible perf config\nMost capable for prod"]
-    PREMIUM_V1["Premium SSD\nUp to 20K IOPS\nBest compatibility\nHighest per-GB pricing"]
-    STANDARD_SSD["Standard SSD\nUp to 6K IOPS\nLow-importance workloads\nDev/test, light apps"]
-    STANDARD_HDD["Standard HDD\nHighest latency\nArchival, backups\nLowest cost"]
+    DISK["Managed Disk Types"]:::step
+
+    ULTRA["Ultra Disk<br/>Up to 160K IOPS<br/>Configurable IOPS+throughput<br/>Latency <1ms<br/>Highest cost<br/>No snapshot, no temp disk"]:::ok
+    PREMIUM["Premium SSD v2<br/>Up to 80K IOPS<br/>Sub-ms latency<br/>Flexible perf config<br/>Most capable for prod"]:::ok
+    PREMIUM_V1["Premium SSD<br/>Up to 20K IOPS<br/>Best compatibility<br/>Highest per-GB pricing"]:::ok
+    STANDARD_SSD["Standard SSD<br/>Up to 6K IOPS<br/>Low-importance workloads<br/>Dev/test, light apps"]:::step
+    STANDARD_HDD["Standard HDD<br/>Highest latency<br/>Archival, backups<br/>Lowest cost"]:::fail
 
     DISK --> ULTRA --> PREMIUM --> PREMIUM_V1 --> STANDARD_SSD --> STANDARD_HDD
 ```
@@ -179,13 +208,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    CREATING["Creating\nNot billed"]
-    RUNNING["Running\n✅ Compute + storage billed"]
-    STOPPING["Stopping\nOS shutdown in progress"]
-    STOPPED["Stopped (OS-level)\n⚠️ Still billed for compute\nDisk still billed"]
-    DEALLOCATED["Deallocated\n✅ Compute NOT billed\nDisk still billed"]
-    RESTARTING["Restarting\nBrief reboot, same host"]
-    DELETING["Deleting\nFinal state"]
+    accTitle: VM Lifecycle and Billing
+    accDescr: Flowchart (td) showing Creating Not billed, Running Compute storage billed, Stopping OS shutdown in progress
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    CREATING["Creating<br/>Not billed"]:::step
+    RUNNING["Running<br/>fa:fa-check Compute + storage billed"]:::ok
+    STOPPING["Stopping<br/>OS shutdown in progress"]:::step
+    STOPPED["Stopped (OS-level)<br/>fa:fa-triangle-exclamation Still billed for compute<br/>Disk still billed"]:::fail
+    DEALLOCATED["Deallocated<br/>fa:fa-check Compute NOT billed<br/>Disk still billed"]:::ok
+    RESTARTING["Restarting<br/>Brief reboot, same host"]:::step
+    DELETING["Deleting<br/>Final state"]:::fail
 
     CREATING --> RUNNING
     RUNNING --> STOPPING --> STOPPED
@@ -211,13 +247,19 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    LAUNCH["Deploy Azure VM"]
-    VNET["Select VNet\n(which environment?)"]
-    SUBNET["Select Subnet\n(public/private/data tier?\nwhich AZ?)"]
-    NSG["Assign NSG\n(or use existing subnet NSG)"]
-    MI["Assign Managed Identity\n(system-assigned or user-assigned)"]
-    PIP["Public IP?\n(No = private only,\nreachable via load balancer / Bastion)"]
-    SSH["Access method:\nAzure Bastion or\nRAM-based ephemeral key"]
+    accTitle: Network Placement and Security
+    accDescr: Flowchart (td) showing Deploy Azure VM, which environment, public/private/data tier which AZ
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    LAUNCH["Deploy Azure VM"]:::step
+    VNET["Select VNet<br/>(which environment?)"]:::step
+    SUBNET["Select Subnet<br/>(public/private/data tier?<br/>which AZ?)"]:::step
+    NSG["Assign NSG<br/>(or use existing subnet NSG)"]:::step
+    MI["Assign Managed Identity<br/>(system-assigned or user-assigned)"]:::step
+    PIP["Public IP?<br/>(No = private only,<br/>reachable via load balancer / Bastion)"]:::step
+    SSH["Access method:<br/>Azure Bastion or<br/>RAM-based ephemeral key"]:::ok
 
     LAUNCH --> VNET --> SUBNET --> NSG --> MI --> PIP --> SSH
 ```

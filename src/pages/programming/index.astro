@@ -27,18 +27,18 @@ const commonLessons = await getCollection('programming', ({ id }) =>
   <TutorialHeader
     title="Programming"
     description="Choose a language track. Both share foundational concepts — you'll see them highlighted as you progress."
-    emoji="💻"
+    icon="mdi:code-braces"
     lessonCount={javaLessons.length + rustLessons.length}
     sharedCount={commonLessons.length}
   />
 
   <!-- Track cards -->
-  <section class="max-w-5xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+  <section class="max-w-6xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
     <FeatureCard
       title="Java"
       description="Object-oriented, platform-independent, and battle-tested in enterprise. From JVM fundamentals to Spring Boot."
       href="/programming/java"
-      emoji="☕"
+      icon="skill-icons:java-dark"
       color="orange"
       lessonCount={javaLessons.length}
     />
@@ -47,7 +47,7 @@ const commonLessons = await getCollection('programming', ({ id }) =>
       title="Rust"
       description="Systems programming with memory safety guaranteed at compile time. No GC, no undefined behavior."
       href="/programming/rust"
-      emoji="🦀"
+      icon="skill-icons:rust"
       color="red"
       lessonCount={rustLessons.length}
     />

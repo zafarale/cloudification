@@ -13,8 +13,6 @@ import Quiz from '../../../components/mdx/Quiz.astro';
 import CodeTabs from '../../../components/mdx/CodeTabs.astro';
 import List from '../../../components/mdx/List.astro';
 
-# Memory Management
-
 Every variable, object, and data structure your program creates needs memory. Memory management is how your program acquires that memory, uses it, and gives it back. Get it wrong and you get crashes, security vulnerabilities, or programs that slowly consume all available RAM until the OS kills them.
 
 Different languages take fundamentally different approaches to this problem. Java uses a garbage collector — an automatic system that tracks and frees unused memory for you. Rust uses a compile-time ownership system that proves memory is safe without any runtime overhead. Understanding both approaches will make you a better developer in either language.
@@ -72,25 +70,31 @@ Languages that came after C took two fundamentally different paths to solve thes
 
 ```mermaid
 flowchart TD
-    C["<b>C (1972)</b><br/>Manual: malloc/free"] --> Java
+    accTitle: The Two Solutions to Manual Memory Management
+    accDescr: Diagram showing how Java (1995) and Rust (2015) each solved C's manual memory management problem — Java with a runtime garbage collector, Rust with compile-time ownership rules.
+    classDef c    fill:none,stroke:#94a3b8,color:#94a3b8,rx:8,ry:8
+    classDef java fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef rust fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    C["fa:fa-c C (1972)\nManual: malloc/free"]:::c
+    Java["fa:fa-mug-hot Java (1995)\nRuntime Solution"]:::java
+    Rust["fa:fa-gear Rust (2015)\nCompile-time Solution"]:::rust
+
+    C --> Java
     C --> Rust
-    
-    Java["<b>Java (1995)</b><br/>Runtime Solution"]
-    Rust["<b>Rust (2015)</b><br/>Compile-time Solution"]
-    
-    Java --> J1["✓ No manual free()"]
-    Java --> J2["✓ No use-after-free"]
-    Java --> J3["✗ Runtime overhead"]
-    Java --> J4["✗ Unpredictable pauses"]
-    
-    Rust --> R1["✓ No manual free()"]
-    Rust --> R2["✓ No use-after-free"]
-    Rust --> R3["✓ Zero runtime overhead"]
-    Rust --> R4["✗ Steeper learning curve"]
-    
-    style C fill:#f9f,stroke:#333
-    style Java fill:#f96,stroke:#333
-    style Rust fill:#b7410e,stroke:#333,color:#fff
+
+    Java --> J1["fa:fa-check No manual free()"]:::ok
+    Java --> J2["fa:fa-check No use-after-free"]:::ok
+    Java --> J3["fa:fa-xmark Runtime overhead"]:::fail
+    Java --> J4["fa:fa-xmark Unpredictable pauses"]:::fail
+
+    Rust --> R1["fa:fa-check No manual free()"]:::ok
+    Rust --> R2["fa:fa-check No use-after-free"]:::ok
+    Rust --> R3["fa:fa-check Zero runtime overhead"]:::ok
+    Rust --> R4["fa:fa-xmark Steeper learning curve"]:::fail
 ```
 
 Both eliminate C's memory bugs. They just do it at different times — Java at runtime, Rust at compile time.
@@ -104,16 +108,18 @@ Every running program has access to two regions of memory:
 The stack is fast, automatic, and limited in size. It works like a stack of plates — you push data on when entering a function, pop it off when leaving. The CPU manages this automatically.
 ```mermaid
 flowchart TB
+    accTitle: Stack Memory and Call Frames
+    accDescr: Flowchart showing the call stack with a main() frame containing local variables x and y, and an add() frame with copies of those variables. When add() returns the frame is popped and memory is freed instantly.
+    classDef frame fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef freed fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
     subgraph Stack["Call Stack"]
         direction TB
-        main["<b>main()</b><br/>x = 5<br/>y = 10"]
-        main --> add["<b>add(x, y)</b><br/>a = 5 (copy)<br/>b = 10 (copy)<br/>result = 15"]
-        add -.->|"returns 15<br/>frame popped"| freed["Memory freed instantly"]
+        main["fa:fa-code main()\nx = 5 · y = 10"]:::frame
+        main --> add["fa:fa-code add(x, y)\na = 5 (copy) · b = 10 (copy)\nresult = 15"]:::frame
+        add -.->|"returns 15\nframe popped"| freed["fa:fa-check Memory freed instantly"]:::freed
     end
-    
-    style main fill:#4a9eff,stroke:#333,color:#fff
-    style add fill:#66b3ff,stroke:#333
-    style freed fill:#90EE90,stroke:#333
 ```
 
 Stack allocation is essentially free — the CPU just moves a pointer. Stack data must have a **known, fixed size at compile time**. Integers, floats, booleans, and fixed-size structs live on the stack.
@@ -123,21 +129,24 @@ Stack allocation is essentially free — the CPU just moves a pointer. Stack dat
 The heap is slower, manual (in concept), and much larger. When you need memory whose size isn't known at compile time — a string the user typed, a list that grows, an object graph — you allocate on the heap.
 ```mermaid
 flowchart LR
+    accTitle: Stack Metadata Pointing to Heap Data
+    accDescr: Flowchart showing that a String stores its metadata (pointer, length, capacity) on the stack while the actual character data lives on the heap.
+    classDef stack fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef heap  fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
     subgraph Stack["Stack"]
         direction TB
-        ptr["str_ptr"]
-        len["str_len = 13"]
-        cap["str_cap = 16"]
+        ptr["fa:fa-arrow-right str_ptr"]:::stack
+        len["fa:fa-hashtag str_len = 13"]:::stack
+        cap["fa:fa-hashtag str_cap = 16"]:::stack
     end
-    
+
     subgraph Heap["Heap"]
-        data["'Hello, world!'"]
+        data["fa:fa-font 'Hello, world!'"]:::heap
     end
-    
+
     ptr -->|"points to"| data
-    
-    style Stack fill:#e6f3ff,stroke:#333
-    style Heap fill:#fff0e6,stroke:#333
 ```
 
 A `String` in both Java and Rust stores its metadata (pointer, length, capacity) on the stack, while the actual character data lives on the heap. Heap allocation requires finding a free block, bookkeeping overhead, and — the hard part — **knowing when to free it**.
@@ -170,22 +179,26 @@ public void processData() {
 Java's GC uses a **generational** model based on the observation that most objects die young:
 ```mermaid
 flowchart LR
+    accTitle: Java Generational Garbage Collection
+    accDescr: Diagram showing Java's generational garbage collection. New objects are allocated in Eden Space and collected by fast minor GC into Survivor spaces, then promoted to the Old Generation where they are collected by a slower major GC.
+    classDef young fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef surv  fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef old   fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
     subgraph Young["Young Generation"]
         direction TB
-        Eden["Eden Space<br/><i>new objects</i>"] -->|"minor GC<br/>(fast)"| Survivor["Survivor S0/S1"]
-        Survivor -->|"survived 1+ GCs"| Promote["Promote"]
+        Eden["fa:fa-seedling Eden Space\nnew objects"]:::young
+        Eden -->|"minor GC (fast)"| Survivor["fa:fa-arrows-rotate Survivor S0/S1"]:::surv
+        Survivor -->|"survived 1+ GCs"| Promote["fa:fa-arrow-up Promote"]:::surv
     end
-    
+
     subgraph Old["Old Generation"]
-        Tenured["Tenured Space<br/><i>long-lived objects</i>"]
+        Tenured["fa:fa-building Tenured Space\nlong-lived objects"]:::old
     end
-    
+
     Promote -->|"after threshold"| Tenured
     Tenured -.->|"major GC (slow)"| Tenured
-    
-    style Eden fill:#90EE90,stroke:#333
-    style Survivor fill:#FFD700,stroke:#333
-    style Tenured fill:#FF6B6B,stroke:#333
 ```
 
 - **Minor GC** — runs frequently, collects Eden space, very fast (milliseconds)

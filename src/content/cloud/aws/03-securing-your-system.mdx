@@ -35,13 +35,19 @@ The security-foundations lesson defines **least privilege** as the principle. IA
 
 ```mermaid
 flowchart TD
-    POLICY["IAM Policy (JSON document)"]
-    STATEMENT["Statement block(s)"]
-    EFFECT["Effect:\nAllow | Deny"]
-    PRINCIPAL["Principal:\nWho this applies to\n(roles/users/services)"]
-    ACTION["Action:\nWhat operation\n(s3:GetObject, ec2:RunInstances)"]
-    RESOURCE["Resource:\nARN of specific resource\nor * for all"]
-    CONDITION["Condition (optional):\nContext constraints\n(IP range, MFA required, time)"]
+    accTitle: IAM Policy Anatomy
+    accDescr: Flowchart (td) showing JSON document, Effect: Allow Deny, roles/users/services
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    POLICY["IAM Policy (JSON document)"]:::step
+    STATEMENT["Statement block(s)"]:::step
+    EFFECT["Effect:<br/>Allow | Deny"]:::ok
+    PRINCIPAL["Principal:<br/>Who this applies to<br/>(roles/users/services)"]:::step
+    ACTION["Action:<br/>What operation<br/>(s3:GetObject, ec2:RunInstances)"]:::step
+    RESOURCE["Resource:<br/>ARN of specific resource<br/>or * for all"]:::step
+    CONDITION["Condition (optional):<br/>Context constraints<br/>(IP range, MFA required, time)"]:::step
 
     POLICY --> STATEMENT
     STATEMENT --> EFFECT & PRINCIPAL & ACTION & RESOURCE & CONDITION
@@ -75,13 +81,21 @@ Note what is **not** in this policy: no `s3:PutObject`, no `s3:DeleteObject`, no
 
 ```mermaid
 flowchart TD
-    REQ["Access request arrives"]
-    DENY_EX{"Explicit Deny\nin any policy?"}
-    ALLOW_EX{"Explicit Allow\nin any policy?"}
-    ORG_SCP{"Allowed by\nOrg SCP?"}
-    BOUNDARY{"Within permission\nboundary?"}
-    ALLOW["✅ Allow"]
-    DENY["❌ Deny"]
+    accTitle: IAM Policy Evaluation
+    accDescr: Flowchart (td) showing Access request arrives, Explicit Deny in any policy, Explicit Allow in any policy
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REQ["Access request arrives"]:::step
+    DENY_EX{"Explicit Deny<br/>in any policy?"}:::decesion
+    ALLOW_EX{"Explicit Allow<br/>in any policy?"}:::decesion
+    ORG_SCP{"Allowed by<br/>Org SCP?"}:::decesion
+    BOUNDARY{"Within permission<br/>boundary?"}:::decesion
+    ALLOW["fa:fa-check Allow"]:::ok
+    DENY["fa:fa-xmark Deny"]:::fail
 
     REQ --> DENY_EX
     DENY_EX -- "Yes" --> DENY
@@ -100,11 +114,17 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    EC2["EC2 Instance\n(or Lambda, ECS task)"]
-    META["Instance Metadata Service\nhttp://169.254.169.254"]
-    STS["AWS STS\n(Security Token Service)"]
-    ROLE["IAM Role\n(attached to instance)"]
-    CREDS["Temporary credentials\nAccessKeyId + SecretKey + SessionToken\nAuto-rotated every ~1 hour"]
+    accTitle: IAM Roles: No Credentials on Instances
+    accDescr: Flowchart (td) showing or Lambda, ECS task, Instance Metadata Service http://169.254.169.254, Security Token Service
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    EC2["EC2 Instance<br/>(or Lambda, ECS task)"]:::step
+    META["Instance Metadata Service<br/>http://169.254.169.254"]:::step
+    STS["AWS STS<br/>(Security Token Service)"]:::step
+    ROLE["IAM Role<br/>(attached to instance)"]:::step
+    CREDS["Temporary credentials<br/>AccessKeyId + SecretKey + SessionToken<br/>Auto-rotated every ~1 hour"]:::ok
 
     EC2 -- "Requests credentials" --> META
     META -- "Calls AssumeRole" --> STS
@@ -127,10 +147,17 @@ The security-foundations lesson defines **default-deny segmentation** as the pri
 
 ```mermaid
 flowchart TD
-    INTERNET["🌐 Internet"]
-    ALB_SG["ALB Security Group\nInbound: 443 from 0.0.0.0/0\nInbound: 80 from 0.0.0.0/0 (redirect)"]
-    APP_SG["App Server Security Group\nInbound: 8080 from ALB_SG only\nOutbound: 5432 to DB_SG"]
-    DB_SG["Database Security Group\nInbound: 5432 from APP_SG only\nNo internet path"]
+    accTitle: Three-Tier Security Group Chaining
+    accDescr: Flowchart (td) showing Internet, redirect, App Server Security Group Inbound: 8080 from ALB_SG only Outbound: 5432 to DB_SG
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    INTERNET["fa:fa-globe Internet"]:::step
+    ALB_SG["ALB Security Group<br/>Inbound: 443 from 0.0.0.0/0<br/>Inbound: 80 from 0.0.0.0/0 (redirect)"]:::ok
+    APP_SG["App Server Security Group<br/>Inbound: 8080 from ALB_SG only<br/>Outbound: 5432 to DB_SG"]:::ok
+    DB_SG["Database Security Group<br/>Inbound: 5432 from APP_SG only<br/>No internet path"]:::fail
 
     INTERNET --> ALB_SG --> APP_SG --> DB_SG
 ```
@@ -167,22 +194,29 @@ The key property: the App SG **references the ALB SG as the source** — not an 
 
 ```mermaid
 flowchart TD
-    IGW["Internet Gateway"]
-    NAT["NAT Gateway\n(public subnet, AZ-a)"]
+    accTitle: VPC Design: Mapping Principles to Subnets
+    accDescr: Flowchart (td) showing Internet Gateway, public subnet, AZ-a, Public Subnets 10.0.1.0/24 10.0.4.0/24
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    IGW["Internet Gateway"]:::step
+    NAT["NAT Gateway<br/>(public subnet, AZ-a)"]:::step
 
     subgraph PUBLIC["Public Subnets 10.0.1.0/24 · 10.0.4.0/24"]
-        ALB["Application Load Balancer\n(spans AZ-a + AZ-b)"]
-        BASTION["Bastion removed → use SSM"]
+        ALB["Application Load Balancer<br/>(spans AZ-a + AZ-b)"]:::ok
+        BASTION["Bastion removed → use SSM"]:::step
     end
 
     subgraph PRIVATE_APP["Private App Subnets 10.0.2.0/24 · 10.0.5.0/24"]
-        EC2A["EC2 / ECS tasks\nAZ-a"]
-        EC2B["EC2 / ECS tasks\nAZ-b"]
+        EC2A["EC2 / ECS tasks<br/>AZ-a"]:::ok
+        EC2B["EC2 / ECS tasks<br/>AZ-b"]:::ok
     end
 
     subgraph PRIVATE_DATA["Private Data Subnets 10.0.3.0/24 · 10.0.6.0/24"]
-        RDS["RDS Multi-AZ\nPrimary + Standby"]
-        SECRETS["Secrets Manager\nVPC Endpoint"]
+        RDS["RDS Multi-AZ<br/>Primary + Standby"]:::fail
+        SECRETS["Secrets Manager<br/>VPC Endpoint"]:::fail
     end
 
     IGW --> ALB
@@ -207,11 +241,18 @@ The security-foundations principle: **encrypt sensitive data at rest**. KMS is t
 
 ```mermaid
 flowchart TD
-    DATA["Plaintext data\n(S3 PUT, EBS write, RDS write)"]
-    DEK["Data Encryption Key (DEK)\nGenerated per object/volume\nSymmetric AES-256"]
-    KMS["AWS KMS\nCustomer Master Key (CMK)"]
-    ENVELOPE["Envelope Encryption:\nDEK encrypted with CMK\nEncrypted DEK stored alongside data"]
-    STORED["Encrypted data + encrypted DEK\n(CMK never leaves KMS)"]
+    accTitle: KMS: Encryption at Rest
+    accDescr: Flowchart (td) showing S3 PUT, EBS write, RDS write, DEK, CMK
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    DATA["Plaintext data<br/>(S3 PUT, EBS write, RDS write)"]:::step
+    DEK["Data Encryption Key (DEK)<br/>Generated per object/volume<br/>Symmetric AES-256"]:::step
+    KMS["AWS KMS<br/>Customer Master Key (CMK)"]:::ok
+    ENVELOPE["Envelope Encryption:<br/>DEK encrypted with CMK<br/>Encrypted DEK stored alongside data"]:::ok
+    STORED["Encrypted data + encrypted DEK<br/>(CMK never leaves KMS)"]:::fail
 
     DATA --> DEK
     DEK -- "Encrypts" --> DATA
@@ -239,12 +280,19 @@ The security-foundations principle: **every privileged action must be traceable*
 
 ```mermaid
 flowchart TD
-    API["Any AWS API call\n(Console, CLI, SDK, service)"]
-    CT["CloudTrail\nCaptures: who, what, when, from where\nIncludes: user/role ARN, IP, request params, response"]
-    S3["S3 Bucket\n(CloudTrail logs — versioned, encrypted, object lock)"]
-    CWL["CloudWatch Logs\n(real-time alerting)"]
-    ALERT["CloudWatch Alarm\ne.g. root account used\nconsole login without MFA\nSecurity Group opened to 0.0.0.0/0"]
-    SNS["SNS → Email / PagerDuty\nSecurity alert"]
+    accTitle: CloudTrail: Implementing Traceability
+    accDescr: Flowchart (td) showing Console, CLI, SDK, service, CloudTrail Captures: who, what, when, from where Includes: user/role ARN, IP, request params, response, CloudTrail logs versioned, encrypted, object lock
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    API["Any AWS API call<br/>(Console, CLI, SDK, service)"]:::step
+    CT["CloudTrail<br/>Captures: who, what, when, from where<br/>Includes: user/role ARN, IP, request params, response"]:::step
+    S3["S3 Bucket<br/>(CloudTrail logs — versioned, encrypted, object lock)"]:::ok
+    CWL["CloudWatch Logs<br/>(real-time alerting)"]:::step
+    ALERT["CloudWatch Alarm<br/>e.g. root account used<br/>console login without MFA<br/>Security Group opened to 0.0.0.0/0"]:::fail
+    SNS["SNS → Email / PagerDuty<br/>Security alert"]:::fail
 
     API --> CT
     CT --> S3
@@ -267,25 +315,32 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    ACCT["Account Level"]
-    IAM_LAYER["IAM Layer"]
-    NET_LAYER["Network Layer"]
-    DATA_LAYER["Data Layer"]
-    OBS_LAYER["Observability"]
+    accTitle: AWS Security Checklist
+    accDescr: Flowchart (td) showing Account Level, IAM Layer, Network Layer
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    ACCT --> A1["Root MFA enabled\ncredentials locked"]
-    ACCT --> A2["Billing alerts set\nOrg SCPs applied"]
-    IAM_LAYER --> I1["No wildcard actions\non sensitive resources"]
-    IAM_LAYER --> I2["IAM Roles on instances\nnot access keys"]
-    IAM_LAYER --> I3["Access Analyzer enabled\nflags external resource access"]
-    NET_LAYER --> N1["3-tier VPC per environment\npublic/private-app/private-data"]
-    NET_LAYER --> N2["SGs use source-group chaining\nnot IP ranges"]
-    NET_LAYER --> N3["No port 22/3389 open\nSSM Session Manager instead"]
-    DATA_LAYER --> D1["EBS + S3 + RDS encrypted\nwith CMK"]
-    DATA_LAYER --> D2["S3 Block Public Access\nenabled account-wide"]
-    OBS_LAYER --> O1["CloudTrail enabled\nall regions, S3 log archive"]
-    OBS_LAYER --> O2["GuardDuty enabled\n(threat detection)"]
-    OBS_LAYER --> O3["Security Hub enabled\n(aggregated findings)"]
+    ACCT["Account Level"]:::step
+    IAM_LAYER["IAM Layer"]:::step
+    NET_LAYER["Network Layer"]:::step
+    DATA_LAYER["Data Layer"]:::step
+    OBS_LAYER["Observability"]:::step
+
+    ACCT --> A1["Root MFA enabled<br/>credentials locked"]:::ok
+    ACCT --> A2["Billing alerts set<br/>Org SCPs applied"]:::ok
+    IAM_LAYER --> I1["No wildcard actions<br/>on sensitive resources"]:::ok
+    IAM_LAYER --> I2["IAM Roles on instances<br/>not access keys"]:::ok
+    IAM_LAYER --> I3["Access Analyzer enabled<br/>flags external resource access"]:::ok
+    NET_LAYER --> N1["3-tier VPC per environment<br/>public/private-app/private-data"]:::ok
+    NET_LAYER --> N2["SGs use source-group chaining<br/>not IP ranges"]:::ok
+    NET_LAYER --> N3["No port 22/3389 open<br/>SSM Session Manager instead"]:::fail
+    DATA_LAYER --> D1["EBS + S3 + RDS encrypted<br/>with CMK"]:::ok
+    DATA_LAYER --> D2["S3 Block Public Access<br/>enabled account-wide"]:::ok
+    OBS_LAYER --> O1["CloudTrail enabled<br/>all regions, S3 log archive"]:::ok
+    OBS_LAYER --> O2["GuardDuty enabled<br/>(threat detection)"]:::ok
+    OBS_LAYER --> O3["Security Hub enabled<br/>(aggregated findings)"]:::ok
 ```
 
 ---

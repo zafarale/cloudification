@@ -37,22 +37,28 @@ Azure organises infrastructure into regions, Availability Zones, and a unique co
 
 ```mermaid
 flowchart TD
-    GLOBE["Azure Global Network\n60+ regions"]
+    accTitle: Azure Global Infrastructure
+    accDescr: Flowchart (td) showing Azure Global Network 60 regions, e.g. East US, Availability Zone 1
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    GLOBE["Azure Global Network<br/>60+ regions"]:::step
 
     subgraph REG["Region (e.g. East US)"]
-        AZ1["Availability Zone 1"]
-        AZ2["Availability Zone 2"]
-        AZ3["Availability Zone 3"]
+        AZ1["Availability Zone 1"]:::ok
+        AZ2["Availability Zone 2"]:::ok
+        AZ3["Availability Zone 3"]:::ok
     end
 
     subgraph PAIR["Region Pair"]
-        EAST["East US"]
-        WEST["West US"]
+        EAST["East US"]:::ok
+        WEST["West US"]:::ok
     end
 
     subgraph EDGE_NET["Edge / CDN"]
-        CDN["Azure CDN / Front Door"]
-        DDOS["Azure DDoS Protection"]
+        CDN["Azure CDN / Front Door"]:::ok
+        DDOS["Azure DDoS Protection"]:::ok
     end
 
     GLOBE --> REG
@@ -79,33 +85,39 @@ This is where Azure differs significantly from AWS. Azure has a **four-level hie
 
 ```mermaid
 flowchart TD
-    ROOT["Tenant Root Group\n(Entra ID Tenant)"]
+    accTitle: The Azure Management Hierarchy
+    accDescr: Flowchart (td) showing Entra ID Tenant, Management Groups, MG: Production
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ROOT["Tenant Root Group<br/>(Entra ID Tenant)"]:::step
 
     subgraph MG["Management Groups"]
-        MG_PROD["MG: Production"]
-        MG_DEV["MG: Non-Production"]
-        MG_PLAT["MG: Platform"]
+        MG_PROD["MG: Production"]:::step
+        MG_DEV["MG: Non-Production"]:::step
+        MG_PLAT["MG: Platform"]:::step
     end
 
     subgraph SUBS["Subscriptions"]
-        SUB_PROD["Sub: prod-workload"]
-        SUB_STAGING["Sub: staging"]
-        SUB_DEV["Sub: dev-team"]
-        SUB_PLAT["Sub: connectivity"]
-        SUB_ID["Sub: identity"]
+        SUB_PROD["Sub: prod-workload"]:::ok
+        SUB_STAGING["Sub: staging"]:::ok
+        SUB_DEV["Sub: dev-team"]:::ok
+        SUB_PLAT["Sub: connectivity"]:::ok
+        SUB_ID["Sub: identity"]:::ok
     end
 
     subgraph RG["Resource Groups"]
-        RG1["RG: prod-web"]
-        RG2["RG: prod-data"]
-        RG3["RG: staging-web"]
+        RG1["RG: prod-web"]:::ok
+        RG2["RG: prod-data"]:::ok
+        RG3["RG: staging-web"]:::ok
     end
 
     subgraph RES["Resources"]
-        VM["VM"]
-        VNET["VNet"]
-        SQL["SQL DB"]
-        SA["Storage Account"]
+        VM["VM"]:::ok
+        VNET["VNet"]:::ok
+        SQL["SQL DB"]:::ok
+        SA["Storage Account"]:::ok
     end
 
     ROOT --> MG_PROD & MG_DEV & MG_PLAT
@@ -133,13 +145,20 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    WORKLOAD{"Workload scope\nof resource?"}
-    SHARED{"Shared across\nmultiple workloads?"}
-    ENV{"Production\nor non-prod?"}
+    accTitle: The Azure Management Hierarchy
+    accDescr: Flowchart (td) showing Workload scope of resource, Shared across multiple workloads, Production or non-prod
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    RG_WL["RG per workload+environment\n(prod-app, staging-app)"]
-    RG_SHARED["RG: shared-services\n(monitoring, keyvault, networking)"]
-    RG_INFRA["RG: platform-infra\n(hub VNet, DNS, Firewall)"]
+    WORKLOAD{"Workload scope<br/>of resource?"}:::decesion
+    SHARED{"Shared across<br/>multiple workloads?"}:::decesion
+    ENV{"Production<br/>or non-prod?"}:::decesion
+
+    RG_WL["RG per workload+environment<br/>(prod-app, staging-app)"]:::ok
+    RG_SHARED["RG: shared-services<br/>(monitoring, keyvault, networking)"]:::ok
+    RG_INFRA["RG: platform-infra<br/>(hub VNet, DNS, Firewall)"]:::ok
 
     WORKLOAD -- "Specific to one" --> ENV
     ENV -- "Yes distinction needed" --> RG_WL
@@ -156,20 +175,26 @@ Azure's identity system — **Microsoft Entra ID** (formerly Azure Active Direct
 
 ```mermaid
 flowchart TD
-    TENANT["Entra ID Tenant\n(Identity plane)"]
-    USERS["Users\n& Groups"]
-    APPS["App Registrations\n& Service Principals"]
-    MI["Managed Identities"]
+    accTitle: Entra ID: Identity Is Separate From Resources
+    accDescr: Flowchart (td) showing Identity plane, Users Groups, App Registrations Service Principals
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    TENANT["Entra ID Tenant<br/>(Identity plane)"]:::step
+    USERS["Users<br/>& Groups"]:::step
+    APPS["App Registrations<br/>& Service Principals"]:::step
+    MI["Managed Identities"]:::step
 
     subgraph AZURE["Azure Resource Plane"]
-        SUB1["Subscription A"]
-        SUB2["Subscription B"]
+        SUB1["Subscription A"]:::ok
+        SUB2["Subscription B"]:::ok
     end
 
-    RBAC["RBAC Role Assignment\n(links identity → resource scope)"]
+    RBAC["RBAC Role Assignment<br/>(links identity → resource scope)"]:::ok
 
     TENANT --> USERS & APPS & MI
-    TENANT -- "One tenant can manage\nmultiple subscriptions" --> AZURE
+    TENANT -- "One tenant can manage<br/>multiple subscriptions" --> AZURE
     USERS -- "Granted access via" --> RBAC
     RBAC --> SUB1 & SUB2
 ```
@@ -192,15 +217,21 @@ For the identity evaluation model (AuthN → AuthZ → Explicit Deny), see the [
 
 ```mermaid
 flowchart TD
-    AZ["Azure Core Services"]
+    accTitle: Core Azure Service Categories
+    accDescr: Flowchart (td) showing Azure Core Services, Compute VMs AKS Container Apps Functions App Service, Storage Blob Files Disks Data Lake
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-    COMPUTE["🖥 Compute\nVMs · AKS · Container Apps · Functions · App Service"]
-    STORAGE["💾 Storage\nBlob · Files · Disks · Data Lake"]
-    DB["🗄 Databases\nSQL DB · Cosmos DB · PostgreSQL · Redis Cache"]
-    NET["🌐 Networking\nVNet · Load Balancer · Application GW · DNS · Front Door"]
-    IAM_BOX["🔐 Security & Identity\nEntra ID · Key Vault · Defender for Cloud · Sentinel"]
-    OBS["📊 Observability\nMonitor · Log Analytics · App Insights · Alerts"]
-    INFRA["⚙ DevOps & Infra\nAzure DevOps · Bicep · ARM Templates · Terraform provider"]
+    AZ["Azure Core Services"]:::step
+
+    COMPUTE["fa:fa-desktop Compute<br/>VMs · AKS · Container Apps · Functions · App Service"]:::ok
+    STORAGE["fa:fa-floppy-disk Storage<br/>Blob · Files · Disks · Data Lake"]:::ok
+    DB["fa:fa-database Databases<br/>SQL DB · Cosmos DB · PostgreSQL · Redis Cache"]:::ok
+    NET["fa:fa-globe Networking<br/>VNet · Load Balancer · Application GW · DNS · Front Door"]:::ok
+    IAM_BOX["fa:fa-lock Security & Identity<br/>Entra ID · Key Vault · Defender for Cloud · Sentinel"]:::ok
+    OBS["fa:fa-chart-bar Observability<br/>Monitor · Log Analytics · App Insights · Alerts"]:::ok
+    INFRA["fa:fa-gears DevOps & Infra<br/>Azure DevOps · Bicep · ARM Templates · Terraform provider"]:::ok
 
     AZ --> COMPUTE & STORAGE & DB & NET & IAM_BOX & OBS & INFRA
 ```
@@ -223,11 +254,22 @@ The main difference from AWS in naming:
 
 ```mermaid
 flowchart TD
-    SUB["New subscription"]
-    BUDGET["1. Set a budget alert\nCost Management + Billing → Budgets"]
-    POLICY["2. Apply baseline Azure Policy\n(e.g. require tags, deny public IPs)"]
-    DEFENDER["3. Enable Defender for Cloud\n(free tier: secure score + recommendations)"]
-    ADMIN["4. Assign subscription Owner role\nto a group, not a user"]
+    accTitle: Subscription Bootstrap: Your First Actions
+    accDescr: Flowchart (td) showing New subscription, 1. Set a budget alert Cost Management Billing Budgets, e.g. require tags, deny public IPs
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    SUB["New subscription"]:::step
+    BUDGET["1. Set a budget alert<br/>Cost Management + Billing → Budgets"]:::step
+    POLICY["2. Apply baseline Azure Policy<br/>(e.g. require tags, deny public IPs)"]:::step
+    DEFENDER["3. Enable Defender for Cloud<br/>(free tier: secure score + recommendations)"]:::step
+    ADMIN["4. Assign subscription Owner role<br/>to a group, not a user"]:::step
+    MFA_ENF["5. Enforce MFA in Entra ID<br/>(Conditional Access or Security Defaults)"]:::step
+    DIAG["6. Enable diagnostic settings<br/>on subscriptions → Log Analytics workspace"]:::ok
+
+    SUB --> BUDGET --> POLICY --> DEFENDER --> ADMIN --> MFA_ENF --> DIAG
+```
     MFA_ENF["5. Enforce MFA in Entra ID\n(Conditional Access or Security Defaults)"]
     DIAG["6. Enable diagnostic settings\non subscriptions → Log Analytics workspace"]
 

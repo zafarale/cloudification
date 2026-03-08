@@ -82,10 +82,22 @@ h1, h2, h3, h4 {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #334155; border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Code blocks: suppress the phantom horizontal scrollbar caused by classic
+   scrollbar mode (custom ::-webkit-scrollbar disables overlay scrollbars,
+   which shrinks the scroll container and creates a hairline overflow).
+   Use scrollbar-gutter to reserve the vertical gutter width without
+   triggering an extra horizontal bar. */
+.expressive-code pre {
+  scrollbar-gutter: stable;
+}
+.expressive-code pre::-webkit-scrollbar {
+  height: 6px;
+}
 
 /* Prose — lesson content */
 .prose {
@@ -151,3 +163,13 @@ html.theme-night .theme-icon-night {
 .mermaid svg rect.background {
   fill: transparent !important;
 }
+
+/* Keyboard navigation — focus ring */
+:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Guarantee HTML hidden attribute is always honoured (survives CSS resets) */
+[hidden] { display: none !important; }

@@ -8,23 +8,23 @@ interface Props {
 const { type = 'info', title } = Astro.props;
 
 const styles = {
-  info:    { border: 'border-blue-500/30',   bg: 'bg-blue-500/5',   text: 'text-blue-400',   icon: 'qlementine-icons:info-16' },
-  warning: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/5', text: 'text-yellow-400', icon: 'qlementine-icons:warning-16' },
-  tip:     { border: 'border-green-500/30',  bg: 'bg-green-500/5',  text: 'text-green-400',  icon: 'qlementine-icons:light-bulb-on-16' },
-  danger:  { border: 'border-red-500/30',    bg: 'bg-red-500/5',    text: 'text-red-400',    icon: 'qlementine-icons:warning-16' },
-  success: { border: 'border-green-500/30',  bg: 'bg-green-500/5',  text: 'text-green-400',  icon: 'qlementine-icons:certified-16' },
+  info:    { border: 'border-blue-500/30',   bg: 'bg-blue-500/5',   text: 'text-blue-400',   icon: 'mdi:information' },
+  warning: { border: 'border-yellow-500/30', bg: 'bg-yellow-500/5', text: 'text-yellow-400', icon: 'mdi:alert' },
+  tip:     { border: 'border-green-500/30',  bg: 'bg-green-500/5',  text: 'text-green-400',  icon: 'mdi:lightbulb' },
+  danger:  { border: 'border-red-500/30',    bg: 'bg-red-500/5',    text: 'text-red-400',    icon: 'mdi:alert-circle' },
+  success: { border: 'border-green-500/30',  bg: 'bg-green-500/5',  text: 'text-green-400',  icon: 'mdi:check-circle' },
 };
 
 
 const s = styles[type];
 ---
 
-<div class={`rounded-lg border ${s.border} ${s.bg} p-4 my-6 not-prose`}>
+<div class={`rounded-xl border ${s.border} ${s.bg} p-4 my-6 not-prose`} role="note" aria-label={title ?? type}>
   <p class={`text-xs font-semibold uppercase tracking-widest ${s.text} mb-2 font-mono flex items-center gap-2`}>
-    <Icon name={s.icon} size={30} />
+    <Icon name={s.icon} size={16} aria-hidden="true" />
     {title ?? type}
   </p>
-  <div class="text-sm text-gray-400 leading-relaxed">
+  <div class="text-sm text-slate-300 leading-relaxed">
     <slot />
   </div>
 </div>

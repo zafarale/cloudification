@@ -55,11 +55,11 @@ const sharedConceptItems = sharedConcepts.map(sc => ({
 }));
 
 const prevLesson = prev
-  ? { title: prev.data.title, href: `/programming/java/${prev.id.replace('java/', '').replace(/\.md$/, '')}` }
+  ? { title: prev.data.title, href: `/programming/java/${prev.id.replace('java/', '').replace(/\.mdx?$/, '')}` }
   : null;
 
 const nextLesson = next
-  ? { title: next.data.title, href: `/programming/java/${next.id.replace('java/', '').replace(/\.md$/, '')}` }
+  ? { title: next.data.title, href: `/programming/java/${next.id.replace('java/', '').replace(/\.mdx?$/, '')}` }
   : null;
 ---
 

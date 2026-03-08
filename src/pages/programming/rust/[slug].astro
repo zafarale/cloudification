@@ -13,7 +13,7 @@ export async function getStaticPaths() {
   const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
 
   return sorted.map((entry, index) => ({
-    params: { slug: entry.id.replace('rust/', '').replace(/\.md$/, '') },
+    params: { slug: entry.id.replace('rust/', '').replace(/\.mdx?$/, '') },
     props: {
       entry,
       prev: sorted[index - 1] ?? null,
@@ -32,7 +32,8 @@ const sorted = allLessons.sort((a, b) => a.data.order - b.data.order);
 
 const sidebarLessons = sorted.map(lesson => ({
   title: lesson.data.title,
-  href: `/programming/rust/${lesson.id.replace('rust/', '').replace(/\.md$/, '')}`,
+  href: `/programming/rust/${lesson.id.replace('rust/', '').replace(/\.mdx?$/, '')}`,
+
   order: lesson.data.order,
 }));
 
@@ -48,11 +49,11 @@ const sharedConceptItems = sharedConcepts.map(sc => ({
 }));
 
 const prevLesson = prev
-  ? { title: prev.data.title, href: `/programming/rust/${prev.id.replace('rust/', '').replace(/\.md$/, '')}` }
+  ? { title: prev.data.title, href: `/programming/rust/${prev.id.replace('rust/', '').replace(/\.mdx?$/, '')}` }
   : null;
 
 const nextLesson = next
-  ? { title: next.data.title, href: `/programming/rust/${next.id.replace('rust/', '').replace(/\.md$/, '')}` }
+  ? { title: next.data.title, href: `/programming/rust/${next.id.replace('rust/', '').replace(/\.mdx?$/, '')}` }
   : null;
 ---
 

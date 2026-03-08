@@ -1,5 +1,10 @@
 {
     "chat.tools.terminal.autoApprove": {
-        "bun": true
+        "bun": true,
+        "true": true,
+        "/^cd /Users/zali/workspace/acert/src/content/networking && for f in fundamentals/01-intro\\.mdx protocols/01-http\\.mdx security/01-tls\\.mdx common/traditional-vs-cloud\\.mdx common/dns\\.mdx; do\n  perl -pi -e 's/\\\\\\\\\"/\"/g' \"\\$f\" && echo \"Fixed: \\$f\"\ndone$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }

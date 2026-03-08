@@ -1,82 +1,39 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
+import PageHeader from '../../../components/PageHeader.astro';
+import LessonList from '../../../components/LessonList.astro';
 import { getCollection } from 'astro:content';
-import { Icon } from 'astro-icon/components';
 import { toTrackSlug } from '../../../lib/content-slugs';
-const lessons = await getCollection('cloud', ({ id }) =>
-  id.startsWith('aws/')
-);
 
+const lessons = await getCollection('cloud', ({ id }) => id.startsWith('aws/'));
 const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/cloud/aws/${toTrackSlug(lesson.id, 'aws')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
 ---
 
-<BaseLayout 
+<BaseLayout
   title="AWS"
   description="Learn Amazon Web Services from the ground up. EC2, S3, Lambda, RDS, and building scalable cloud infrastructure on AWS."
   keywords={['AWS tutorials', 'Amazon Web Services', 'EC2', 'S3', 'Lambda', 'RDS', 'cloud infrastructure', 'serverless']}
   certifications={['AWS Solutions Architect Associate', 'AWS Developer Associate', 'AWS Cloud Practitioner', 'AWS SysOps Administrator']}
 >
-
-  <section class="max-w-4xl mx-auto px-6 pt-16 pb-12">
-    <a href="/cloud" class="text-sm text-gray-500 hover:text-gray-300 transition-colors mb-6 inline-block">
-      ← Back to Cloud
-    </a>
-    <div class="flex items-center gap-4 mb-4">
-      <Icon name="logos:aws" class="text-5xl" />
-      <h1 class="text-5xl font-black tracking-tight">Amazon Web Services</h1>
-    </div>
-    <p class="text-gray-400 text-lg max-w-2xl">
-      Amazon Web Services from the ground up. Work through lessons in order — each builds on the last.
-    </p>
-    <div class="flex gap-6 mt-8 text-sm text-gray-500">
-      <span>{sorted.length} lessons</span>
-      {sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0) > 0 && (
-        <span>{sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0)} min total</span>
-      )}
-    </div>
-  </section>
-
-  <section class="max-w-4xl mx-auto px-6 pb-24">
-    <div class="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/5">
-      {sorted.map((lesson, index) => {
-        const slug = toTrackSlug(lesson.id, 'aws');
-        return (
-          <a
-            href={`/cloud/aws/${slug}`}
-            class="flex items-center gap-6 px-6 py-5 hover:bg-white/5 transition-colors group"
-          >
-            <span class="text-2xl font-black text-yellow-500/30 group-hover:text-yellow-500/60 transition-colors w-8 shrink-0 tabular-nums">
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <div class="flex-1 min-w-0">
-              <p class="font-semibold">
-                {lesson.data.title}
-              </p>
-              <p class="text-sm text-gray-500 mt-0.5 truncate">
-                {lesson.data.description}
-              </p>
-              {lesson.data.tags && lesson.data.tags.length > 0 && (
-                <div class="flex gap-2 mt-2">
-                  {lesson.data.tags.map(tag => (
-                    <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div class="flex items-center gap-4 shrink-0">
-              {lesson.data.duration && (
-                <span class="text-xs text-gray-600">{lesson.data.duration}m</span>
-              )}
-              <span class="text-gray-600 group-hover:text-yellow-400 group-hover:translate-x-1 transition-all duration-200">
-                →
-              </span>
-            </div>
-          </a>
-        );
-      })}
-    </div>
-  </section>
-
+  <PageHeader
+    title="Amazon Web Services"
+    description="Amazon Web Services from the ground up. Work through lessons in order — each builds on the last."
+    iconName="logos:aws"
+    backHref="/cloud"
+    backLabel="Back to Cloud"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="amber" />
 </BaseLayout>

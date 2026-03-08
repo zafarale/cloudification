@@ -6,8 +6,6 @@ import sitemap from "@astrojs/sitemap";
 import expressiveCode from "astro-expressive-code";
 import icon from "astro-icon";
 import mermaid from "astro-mermaid";
-import { pluginLineNumbers } from '@expressive-code/plugin-line-numbers';
-import { pluginCollapsibleSections } from '@expressive-code/plugin-collapsible-sections';
 
 
 // https://astro.build/config
@@ -17,19 +15,15 @@ export default defineConfig({
   },
 
   integrations: [
-    icon(),
-    expressiveCode({
-      plugins: [pluginLineNumbers(), pluginCollapsibleSections()],
-      themes: ['vitesse-dark', 'vitesse-light'],
-      themeCssSelector: (theme) =>
-        theme.type === 'dark' ? 'html:not(.theme-day)' : 'html.theme-day',
-      styleOverrides: {
-        borderRadius: '0.5rem',
-        frames: {
-          frameBoxShadowCssValue: 'none',
-        },
+    icon({
+      include: {
+        mdi: ['*'],
+        logos: ['*'],
+        'skill-icons': ['*'],
+        clarity: ['*'],
       },
     }),
+    expressiveCode(),
     mermaid({
       autoTheme: true,
       mermaidConfig: {

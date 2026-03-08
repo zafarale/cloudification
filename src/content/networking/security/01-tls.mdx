@@ -1,50 +1,299 @@
 ---
 title: "TLS/SSL Fundamentals"
-description: "Securing network communication with encryption"
+description: "How TLS secures network communication — the handshake, certificate chain of trust, cipher suites, and cloud-managed certificate services including ACM and Azure Key Vault."
 order: 1
-duration: 12
-tags: ["tls", "ssl", "security", "encryption"]
+duration: 24
+tags: ["tls", "ssl", "security", "encryption", "certificates", "https"]
 ---
 
-TLS (Transport Layer Security) is the protocol that secures communication over networks. When you see HTTPS, TLS is what makes it secure.
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import { Icon } from 'astro-icon/components';
+
+**TLS (Transport Layer Security)** is the cryptographic protocol that secures virtually all networked communication today — HTTPS, SMTPS, database connections, mTLS between microservices, and VPN tunnels. Every time a browser shows the padlock icon, TLS is doing three things simultaneously: **encrypting** the channel, **authenticating** the server's identity, and **verifying integrity** of every byte transferred.
+
+<KeyPoints>
+- What TLS solves and why plain TCP is insufficient for sensitive traffic
+- The TLS 1.3 handshake steps and what happens cryptographically at each stage
+- How the X.509 certificate chain of trust works from leaf to root CA
+- What cipher suites are and how to choose secure vs deprecated ones
+- How cloud certificate services (AWS ACM, Azure Key Vault) eliminate manual cert management
+- How mTLS adds client-side authentication for service-to-service communication
+</KeyPoints>
+
+---
 
 ## Why TLS?
 
-Without encryption, network traffic can be:
-- **Intercepted** — Anyone on the network can read your data
-- **Modified** — Attackers can alter data in transit
-- **Impersonated** — No way to verify who you're talking to
+Without TLS, any network path between client and server — ISP, corporate proxy, coffee shop Wi-Fi — can read, modify, or replay your traffic.
 
-TLS solves all three problems through **encryption**, **integrity checks**, and **authentication**.
+```mermaid
+flowchart LR
+    accTitle: Why TLS?
+    accDescr: Flowchart (lr) showing no TLS, TLS, certificate verified
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-## The TLS Handshake
+    subgraph PLAIN["Plain HTTP (no TLS)"]
+        C1["Client"]:::step
+        MITM["Attacker on network path\<br/>Can READ all traffic\<br/>Can MODIFY responses\<br/>Can REPLAY requests"]:::fail
+        S1["Server"]:::step
+        C1 --> MITM --> S1
+    end
 
-Before encrypted communication begins, client and server perform a handshake:
+    subgraph SECURE["HTTPS (TLS)"]
+        C2["Client"]:::step
+        ENC["Encrypted channel\<br/>Attacker sees ciphertext only"]:::ok
+        S2["Server (certificate verified)"]:::ok
+        C2 --> ENC --> S2
+    end
+```
+
+TLS solves:
+- **Confidentiality** — symmetric encryption prevents eavesdropping
+- **Integrity** — HMAC/AEAD detects any modification in transit
+- **Authentication** — certificates prove the server is who it claims to be
+
+---
+
+## The TLS 1.3 Handshake
+
+TLS 1.3 (2018) reduced the handshake from 2 round trips (TLS 1.2) to 1 round trip. It removed weak cipher suites and made forward secrecy mandatory.
+
+```mermaid
+sequenceDiagram
+    accTitle: The TLS 1.3 Handshake
+    accDescr: Sequence diagram showing SYN / SYN-ACK / ACK, Diffie-Hellman public key, X.509
+    participant C as Client
+    participant S as Server
+
+    Note over C,S: TCP connection established (SYN / SYN-ACK / ACK)
+
+    C->>S: ClientHello<br/>- TLS version: 1.3<br/>- Supported cipher suites<br/>- Key share (Diffie-Hellman public key)
+
+    S-->>C: ServerHello<br/>- Chosen cipher suite<br/>- Server DH key share<br/>- Certificate (X.509)<br/>- CertificateVerify (signed with private key)<br/>- Finished (HMAC of handshake)
+
+    Note over C,S: Client derives session keys from DH exchange<br/>No server private key needed to derive keys (forward secrecy)
+
+    C->>S: Finished (HMAC confirms handshake integrity)<br/>+ First application data (0-RTT possible in resumption)
+
+    Note over C,S: Encrypted application data flows bidirectionally
+```
+
+**Key properties of TLS 1.3:**
+- **1-RTT handshake** — one round trip vs two in TLS 1.2
+- **Forward secrecy mandatory** — session keys derived via ephemeral Diffie-Hellman; compromising the server's private key later cannot decrypt past sessions
+- **Removed weak algorithms** — no RSA key exchange, no RC4, no SHA-1, no CBC mode
+- **0-RTT resumption** — previously-connected clients can send data in the first flight (with replay-attack caveats)
+
+---
+
+## Certificate Chain of Trust
+
+Browsers and operating systems ship with a list of **trusted root CAs**. A TLS certificate must chain up to one of these roots to be trusted.
+
+```mermaid
+flowchart TD
+    accTitle: Certificate Chain of Trust
+    accDescr: Flowchart (td) illustrating certificate chain of trust
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ROOT["Root CA\<br/>(DigiCert, Let's Encrypt ISRG, Comodo)\<br/>Self-signed, extremely long-lived\<br/>Stored in OS/browser trust store"]:::ok
+
+    INTER["Intermediate CA\<br/>Signed by Root CA\<br/>Used for day-to-day issuance\<br/>Allows Root CA to stay offline"]:::step
+
+    LEAF["Leaf Certificate\<br/>Signed by Intermediate CA\<br/>Issued for: api.example.com\<br/>Expires in 90 days (Let's Encrypt)"]:::step
+
+    CLIENT["Client verifies:\<br/>1. Leaf signed by Intermediate?\<br/>2. Intermediate signed by Root?\<br/>3. Root in trust store?\<br/>4. Certificate not expired/revoked?\<br/>5. CN/SAN matches hostname?"]:::ok
+
+    ROOT --> INTER --> LEAF --> CLIENT
+```
+
+**What the client checks:**
+1. Signature chain (cryptographic verification)
+2. Expiry (`notBefore` and `notAfter`)
+3. Revocation (OCSP or CRL)
+4. Subject Alternative Name (SAN) matches the hostname you connected to
+
+<Callout type="warning" title="Always Send the Intermediate Certificate">
+If your server does not send the intermediate certificate in the TLS handshake, some clients will fail to verify the chain even if your leaf certificate is valid. Configure your web server to include the full chain (`fullchain.pem` in Let's Encrypt, or the bundle from your CA).
+</Callout>
+
+---
+
+## Cipher Suites
+
+A **cipher suite** specifies the combination of algorithms used for key exchange, authentication, encryption, and message authentication in a TLS session.
 
 ```
-Client                         Server
-  |                               |
-  |---- ClientHello ------------>|
-  |                               |
-  |<--- ServerHello + Cert ------|
-  |                               |
-  |---- Key Exchange ----------->|
-  |                               |
-  |<--- Finished ----------------|
-  |                               |
-  |==== Encrypted Traffic =======|
+TLS_AES_256_GCM_SHA384       (TLS 1.3 cipher suite — simplified format)
+
+TLS 1.2 format: TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+  ECDHE       → Key exchange (Elliptic Curve Diffie-Hellman Ephemeral)
+  RSA         → Authentication (server cert type)
+  AES_256_GCM → Bulk encryption (AEAD)
+  SHA384      → HMAC for message authentication
 ```
 
-## Certificates
+| Cipher suite | Status | Notes |
+|---|---|---|
+| `TLS_AES_128_GCM_SHA256` | <Icon name="mdi:check-circle" class="inline w-4 h-4 align-middle text-green-500" /> Recommended (TLS 1.3) | Fast on hardware without AES-NI |
+| `TLS_AES_256_GCM_SHA384` | <Icon name="mdi:check-circle" class="inline w-4 h-4 align-middle text-green-500" /> Recommended (TLS 1.3) | Higher security margin |
+| `TLS_CHACHA20_POLY1305_SHA256` | <Icon name="mdi:check-circle" class="inline w-4 h-4 align-middle text-green-500" /> Recommended (TLS 1.3) | Best for mobile (software crypto) |
+| `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256` | <Icon name="mdi:check-circle" class="inline w-4 h-4 align-middle text-green-500" /> TLS 1.2 OK | Forward secret |
+| `TLS_RSA_WITH_AES_128_CBC_SHA` | <Icon name="mdi:close-circle" class="inline w-4 h-4 align-middle text-red-500" /> Deprecated | No forward secrecy, CBC padding oracle |
+| `TLS_RSA_WITH_RC4_128_MD5` | <Icon name="mdi:close-circle" class="inline w-4 h-4 align-middle text-red-500" /> Forbidden | RC4 broken, MD5 broken |
 
-TLS relies on **X.509 certificates** to verify identity:
+---
 
-- **Certificate Authority (CA)** — Trusted third party that signs certificates
-- **Public Key** — Included in certificate, used for encryption
-- **Private Key** — Kept secret by the server
+## Certificate Lifecycle: Traditional vs Cloud
 
-## Common Issues
+```mermaid
+flowchart TD
+    accTitle: Certificate Lifecycle: Traditional vs Cloud
+    accDescr: Flowchart (td) showing Self-Managed, pay/verify, DNS or HTTP
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
 
-- **Certificate expiration** — Certificates have a validity period
-- **Chain of trust** — All certificates in the chain must be valid
-- **Mixed content** — HTTP resources on HTTPS pages
+    subgraph TRAD["Traditional (Self-Managed)"]
+        GEN["Generate CSR on server"]:::step
+        SUBMIT["Submit to CA (pay/verify)"]:::step
+        INSTALL["Download cert, copy to servers"]:::step
+        EXPIRE["fa:fa-triangle-exclamation Track expiry manually\<br/>Calendar reminders"]:::fail
+        RENEW["Manually renew every 1–2 years"]:::fail
+    end
+
+    subgraph ACM["AWS ACM / Azure Key Vault"]
+        PROV["Provision cert via API"]:::ok
+        VALID["Domain validation (DNS or HTTP)"]:::ok
+        AUTO["Auto-attached to ALB / CloudFront"]:::ok
+        RENEW2["Auto-renewed before expiry\<br/>Zero manual effort"]:::ok
+        ROTATE["Cert rotation is API call"]:::ok
+    end
+```
+
+| Aspect | Self-Managed | AWS ACM | Azure Key Vault TLS |
+|---|---|---|---|
+| Cost | CA fees | Free for ACM certs | Per-cert/operation costs |
+| Renewal | Manual | Automatic | Automatic (managed cert) |
+| Rotation | SSH + copy | API / automatic | API call |
+| Private key | On server disk | Never leaves AWS | Key Vault HSM |
+| Scope | Anywhere | AWS endpoints only | Azure endpoints + export |
+
+<Callout type="tip" title="ACM Certs Cannot Be Exported">
+AWS ACM certificates are managed by AWS and cannot be exported as PEM files. They can only be used with AWS services (ALB, CloudFront, API Gateway). For non-AWS use (e.g., on-premises, EC2 with nginx), request a cert from Let's Encrypt or purchase from a CA and manage it yourself.
+</Callout>
+
+---
+
+## Mutual TLS (mTLS)
+
+Standard TLS authenticates the **server** to the client. **mTLS** adds the reverse — the server also verifies that the client holds a valid certificate. This is the foundation of zero-trust service mesh authentication.
+
+```mermaid
+sequenceDiagram
+    accTitle: Mutual TLS (mTLS)
+    accDescr: Sequence diagram showing client, server, server identity
+    participant SVC_A as Service A (client)
+    participant SVC_B as Service B (server)
+
+    Note over SVC_A,SVC_B: Standard TLS — server authenticates only
+    SVC_A->>SVC_B: ClientHello
+    SVC_B-->>SVC_A: Certificate (server identity)
+    SVC_A->>SVC_B: Application data (server verified)
+
+    Note over SVC_A,SVC_B: mTLS — both sides authenticate
+    SVC_A->>SVC_B: ClientHello + client certificate request indication
+    SVC_B-->>SVC_A: Server certificate + CertificateRequest
+    SVC_A->>SVC_B: Client certificate (issued by internal CA)<br/>+ CertificateVerify
+    SVC_B->>SVC_A: Verifies client cert against internal CA
+    Note over SVC_A,SVC_B: Both identities verified — encrypted channel established
+```
+
+mTLS is used by:
+- **Service meshes** (Istio, Linkerd) — automatic mTLS between every pod
+- **Internal microservices** — `sidecar proxy` handles cert issuance via SPIFFE/SPIRE
+- **Zero-trust network access** — device certificates for corporate resources
+
+---
+
+## TLS in Practice
+
+<CodeTabs tabs={[
+  {
+    label: "Inspect certificate",
+    lang: "bash",
+    code: `# Check what certificate a server presents
+openssl s_client -connect api.example.com:443 -servername api.example.com 2>/dev/null \\
+  | openssl x509 -noout -text | grep -E "Subject:|Issuer:|Not After|DNS:"
+
+# Check certificate expiry only
+echo | openssl s_client -connect api.example.com:443 2>/dev/null \\
+  | openssl x509 -noout -dates
+
+# Check if TLS 1.3 is supported
+openssl s_client -connect api.example.com:443 -tls1_3 2>&1 | grep -i "TLSv"`
+  },
+  {
+    label: "Test cipher suites (nmap)",
+    lang: "bash",
+    code: `# Enumerate supported cipher suites and TLS versions
+nmap --script ssl-enum-ciphers -p 443 api.example.com
+
+# Check for weak protocols (should show no TLS 1.0/1.1)
+openssl s_client -connect api.example.com:443 -tls1 2>&1 | grep "handshake"
+# Expected: "handshake failure" — TLS 1.0 disabled`
+  },
+  {
+    label: "AWS ACM (CLI)",
+    lang: "bash",
+    code: `# Request a public certificate (DNS validation)
+aws acm request-certificate \\
+  --domain-name api.example.com \\
+  --subject-alternative-names "*.example.com" \\
+  --validation-method DNS \\
+  --region us-east-1
+
+# List certs and check expiry
+aws acm list-certificates \\
+  --query 'CertificateSummaryList[*].[DomainName,Status,RenewalSummary.RenewalStatus]' \\
+  --output table`
+  },
+  {
+    label: "Let's Encrypt (certbot)",
+    lang: "bash",
+    code: `# Install certbot
+sudo apt-get install certbot python3-certbot-nginx
+
+# Issue cert + auto-configure nginx
+sudo certbot --nginx -d api.example.com -d www.example.com
+
+# Test renewal (dry run)
+sudo certbot renew --dry-run
+
+# Check cert stored on disk
+sudo openssl x509 -in /etc/letsencrypt/live/example.com/cert.pem -noout -dates`
+  },
+]} />
+
+---
+
+<Quiz
+  question="A microservice returns a certificate error: 'certificate has expired'. The certificate was issued by an internal CA. What is the fastest safe fix that doesn't bypass security?"
+  options={[
+    { label: "Set `verify: false` in the HTTP client to skip validation" },
+    { label: "Reissue the certificate from the internal CA and update the service", correct: true },
+    { label: "Switch to HTTP for internal service calls" },
+    { label: "Extend the certificate validity by editing the PEM file" },
+  ]}
+  explanation="Disabling certificate verification (`verify: false`) defeats TLS authentication and creates a man-in-the-middle vulnerability. PEM files cannot be edited to change validity. The correct fix is to reissue via your internal CA and rotate the cert on the service — automate this with SPIFFE/SPIRE or cert-manager in Kubernetes to prevent the problem recurring."
+/>

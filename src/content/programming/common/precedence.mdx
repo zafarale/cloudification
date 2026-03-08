@@ -7,9 +7,20 @@ tags: ["operators", "expressions", "fundamentals"]
 sharedWith: ["java", "rust"]
 ---
 
-# Operator Precedence
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 
-When an expression contains multiple operators, precedence rules determine the order of evaluation. Getting this wrong is a common source of subtle bugs — understanding it once saves you a lot of head-scratching later.
+Operator precedence rules determine the order in which expressions evaluate when multiple operators appear together. Getting this wrong is a common source of subtle bugs — understanding it once saves considerable debugging time.
+
+<KeyPoints>
+- The full precedence hierarchy from highest (grouping) to lowest (assignment)
+- Why `&&` binds tighter than `||` and how that affects compound conditions
+- The difference between pre-increment (`++x`) and post-increment (`x++`)
+- How integer division truncates and why mixing `int` and `double` matters
+- The golden rule: use parentheses when intent is not obvious
+</KeyPoints>
+
+---
 
 ## The Golden Rule
 
@@ -40,6 +51,30 @@ int result = 2 + (3 * 4) - 1;
 | 12 | `\|\|` | Logical OR |
 | 13 | `? :` | Ternary |
 | 14 (lowest) | `=` `+=` `-=` etc. | Assignment |
+
+```mermaid
+flowchart TD
+    accTitle: Operator Precedence from Highest to Lowest
+    accDescr: A top-to-bottom chain of operator groups ranked from highest precedence at the top to lowest at the bottom. Grouping and access operators are highest, followed by unary, multiplicative, additive, shift, relational, equality, bitwise, logical, ternary, and assignment as the lowest.
+    classDef high fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef mid  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef low  fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    G["fa:fa-circle-dot Grouping   ( )  [ ]  ."]:::high
+    U["fa:fa-arrow-up Unary   ++  --  !  ~"]:::high
+    M["fa:fa-xmark Multiplicative   *  /  %"]:::high
+    A["fa:fa-plus Additive   +  -"]:::mid
+    SH["fa:fa-angles-right Shift   <<  >>  >>>"]:::mid
+    RL["fa:fa-less-than Relational   <  >  <=  >="]:::mid
+    EQ["fa:fa-equals Equality   ==  !="]:::mid
+    BW["fa:fa-hashtag Bitwise   &  ^  |"]:::low
+    LG["fa:fa-check Logical   &&  ||"]:::low
+    TR["fa:fa-question Ternary   ? :"]:::low
+    AS["fa:fa-pen Assignment   =  +=  -=  …"]:::low
+
+    G --> U --> M --> A --> SH --> RL --> EQ --> BW --> LG --> TR --> AS
+```
 
 ## Common Pitfalls
 

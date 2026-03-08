@@ -37,20 +37,26 @@ By the end of this lesson you will be able to:
 
 Azure VMs come with two storage categories:
 
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         Azure VM                                  │
-│                                                                   │
-│  ┌──────────────────────┐    ┌─────────────────────────────────┐  │
-│  │   Temporary Disk     │    │       Managed Disk              │  │
-│  │                      │    │                                 │  │
-│  │  Local SSD on host   │    │  Azure-managed block storage    │  │
-│  │  Fast, low latency   │    │  Persists across restarts       │  │
-│  │  Lost on dealloc/    │    │  AZ-scoped or ZRS option        │  │
-│  │  resize/redeploy     │    │  Snapshot supported             │  │
-│  │  (/dev/sdb → /mnt)   │    │  Multiple SKUs                  │  │
-│  └──────────────────────┘    └─────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    accTitle: Managed Disks vs Temporary Disk
+    accDescr: Flowchart (lr) showing Azure VM, /dev/sdb /mnt, Managed Disk Azure-managed block storage Persists across restarts AZ-scoped or ZRS Snapshot supported
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    subgraph VM["Azure VM"]
+        direction LR
+        TEMP["Temporary Disk<br/>Local SSD on host<br/>Fast, low latency<br/>Lost on dealloc/resize/redeploy<br/>(/dev/sdb → /mnt)"]:::fail
+        MD["Managed Disk<br/>Azure-managed block storage<br/>Persists across restarts<br/>AZ-scoped or ZRS<br/>Snapshot supported"]:::ok
+    end
+
+    SWAP["Swap, temp files<br/>Page files only"]:::fail
+    APPDATA["OS disk, app data<br/>Databases, logs"]:::ok
+
+    TEMP --> SWAP
+    MD --> APPDATA
 ```
 
 | Property | Temporary Disk | Managed Disk |
@@ -115,11 +121,40 @@ Azure VMs can cache disk IO at the **VM host layer** using the host DRAM or loca
 | **ReadOnly** | Cached | Bypass cache → direct write | OS disk reads, app binaries, database data files (read-heavy) |
 | **ReadWrite** | Cached | Cached (write-back) | Rarely safe for production data disks; risk of write loss on host failure |
 
+```mermaid
+flowchart LR
+    accTitle: Host Caching
+    accDescr: Flowchart (lr) showing Host Cache Mode, None No cache Best for write-intensive DB log files, ReadOnly Reads cached Writes bypass to storage Best for OS / data files
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    CACHE_MODE["Host Cache Mode"]:::step
+    NONE["None<br/>No cache<br/>Best for write-intensive<br/>DB log files"]:::ok
+    RO["ReadOnly<br/>Reads cached<br/>Writes bypass to storage<br/>Best for OS / data files"]:::ok
+    RW["ReadWrite<br/>fa:fa-triangle-exclamation Writes buffered on host<br/>Risk of loss on host failure"]:::ok
+
+    CACHE_MODE --> NONE & RO & RW
 ```
-ReadOnly caching flow:
-  First read:   VM → host cache miss → Azure storage → populate cache
-  Second read:  VM → host cache hit  → return immediately (sub-ms)
-  Write:        VM → bypass cache → Azure storage directly
+
+```mermaid
+sequenceDiagram
+    accTitle: Host Caching
+    accDescr: Sequence diagram showing first access, cached, subsequent access
+    participant VM
+    participant HostCache
+    participant AzureStorage
+
+    Note over VM,AzureStorage: ReadOnly caching — read path
+    VM->>HostCache: Read request
+    alt Cache miss (first access)
+        HostCache->>AzureStorage: Fetch block
+        AzureStorage-->>HostCache: Data
+        HostCache-->>VM: Data (cached)
+    else Cache hit (subsequent access)
+        HostCache-->>VM: Data (sub-ms)
+    end
+    VM->>AzureStorage: Write (bypasses cache)
 ```
 
 <Callout type="warning" title="ReadWrite Caching Risk">
@@ -575,11 +610,21 @@ az monitor metrics alert create \
 
 ### OS + Data Disk Separation
 
-```
-Azure VM
-  ├── OS Disk (P10/P15) – ReadOnly cache – OS and binaries only
-  ├── Data Disk (P30)   – ReadOnly cache – application data
-  └── Log Disk  (P30)   – None cache     – database WAL / transaction log
+```mermaid
+flowchart LR
+    accTitle: OS + Data Disk Separation
+    accDescr: Flowchart (lr) showing Azure VM, P10/P15, P30
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    VM["Azure VM"]:::step
+    OS["OS Disk (P10/P15)<br/>ReadOnly cache<br/>OS and binaries only"]:::ok
+    DATA["Data Disk (P30)<br/>ReadOnly cache<br/>Application data"]:::ok
+    LOG["Log Disk (P30)<br/>None cache<br/>DB WAL / transaction log"]:::fail
+
+    VM --> OS & DATA & LOG
 ```
 
 Separate disks by function: OS, data, and log. This allows independent snapshot policies, distinct caching strategies, and easier disk replacement without touching unrelated data.

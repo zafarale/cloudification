@@ -13,7 +13,7 @@ const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0)
 const lessonItems = sorted.map(lesson => ({
   title: lesson.data.title,
   description: lesson.data.description,
-  href: `/programming/rust/${lesson.id.replace('rust/', '').replace(/\.md$/, '')}`,
+  href: `/programming/rust/${lesson.id.replace('rust/', '').replace(/\.mdx?$/, '')}`,
   order: lesson.data.order,
   duration: lesson.data.duration,
   tags: lesson.data.tags,
