@@ -17,8 +17,8 @@ export const toCommonIdCandidates = (concept: string) => {
   ];
 };
 
-/** Prefix a path with the Astro base URL (handles both '/' and '/cloudification/'). */
+/** Prefix a path with the Astro base URL (handles both '/' and '/cloudification'). */
 export const href = (path: string): string => {
-  const base = import.meta.env.BASE_URL;
-  return `${base}${path.replace(/^\//, '')}`;
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  return `${base}/${path.replace(/^\//, '')}`;
 };

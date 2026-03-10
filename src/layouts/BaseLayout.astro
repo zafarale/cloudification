@@ -2,8 +2,7 @@
 import ThemeToggle from '../components/ThemeToggle.astro';
 import SearchModal from '../components/SearchModal.astro';
 import '../styles/global.css';
-
-const base = import.meta.env.BASE_URL;
+import { href as makeHref } from '../lib/content-slugs';
 
 interface Props {
   title: string;
@@ -124,7 +123,7 @@ const fullTitle = `${title} — Acert`;
       style="background-color: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--border); box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.45);"
     >
       <!-- Left: logo -->
-      <a href={base} class="font-mono font-bold text-lg tracking-tight transition-colors shrink-0"
+      <a href={makeHref('/')} class="font-mono font-bold text-lg tracking-tight transition-colors shrink-0"
         style="color: var(--text)">
         acert
       </a>
@@ -138,9 +137,9 @@ const fullTitle = `${title} — Acert`;
 
       <!-- Right: nav links + theme toggle -->
       <div class="flex items-center gap-5 text-sm shrink-0" style="color: var(--text-muted)">
-        <a href={`${base}programming`} class="hover:text-orange-400 transition-colors hidden md:inline">Programming</a>
-        <a href={`${base}cloud`} class="hover:text-blue-400 transition-colors hidden md:inline">Cloud</a>
-        <a href={`${base}cicd`} class="hover:text-green-400 transition-colors hidden md:inline">CI/CD</a>
+        <a href={makeHref('/programming')} class="hover:text-orange-400 transition-colors hidden md:inline">Programming</a>
+        <a href={makeHref('/cloud')} class="hover:text-blue-400 transition-colors hidden md:inline">Cloud</a>
+        <a href={makeHref('/cicd')} class="hover:text-green-400 transition-colors hidden md:inline">CI/CD</a>
         <ThemeToggle />
       </div>
     </nav>
