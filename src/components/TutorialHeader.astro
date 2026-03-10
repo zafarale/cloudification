@@ -1,5 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
+import { href as makeHref } from '../lib/content-slugs';
 
 interface Props {
   title: string;
@@ -27,7 +28,7 @@ const {
 ---
 
 <section class="max-w-5xl mx-auto px-6 pt-16 pb-12">
-  <a href={backHref} class="text-sm hover:text-gray-300 transition-colors mb-6 inline-block font-mono"
+  <a href={makeHref(backHref)} class="text-sm hover:text-gray-300 transition-colors mb-6 inline-block font-mono"
     style="color: var(--text-faint)">
     ← {backLabel}
   </a>
