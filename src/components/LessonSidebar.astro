@@ -1,5 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
+import { href as makeHref } from '../lib/content-slugs';
 
 interface Lesson {
   title: string;
@@ -54,7 +55,7 @@ const { lessons, groups, currentSlug, backHref, backLabel, color, groupLabel } =
     <aside class="w-64 min-h-screen bg-base-100 border-r border-white/10 flex flex-col pt-8 pb-24 overflow-y-auto">
 
       <div class="px-4 mb-6 flex items-center justify-between">
-        <a href={backHref} class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+        <a href={makeHref(backHref)} class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
           ← {backLabel}
         </a>
         <label for="lesson-drawer" aria-label="close sidebar" class="btn btn-ghost btn-xs lg:hidden is-drawer-open">✕</label>
@@ -70,12 +71,12 @@ const { lessons, groups, currentSlug, backHref, backLabel, color, groupLabel } =
 
       {/* Grouped tree mode */}
       {groups && groups.map((group) => {
-        const groupActive = group.href && group.href === Astro.url.pathname;
+        const groupActive = group.href && makeHref(group.href) === Astro.url.pathname;
         return (
           <div class="mb-1">
             {group.href ? (
               <a
-                href={group.href}
+                href={makeHref(group.href)}
                 class={`flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
                   groupActive
                     ? `text-${color}-400`
@@ -96,10 +97,10 @@ const { lessons, groups, currentSlug, backHref, backLabel, color, groupLabel } =
               </div>
             )}
             {group.lessons.map((lesson, index) => {
-              const isActive = lesson.href === Astro.url.pathname;
+              const isActive = makeHref(lesson.href) === Astro.url.pathname;
               return (
                 <a
-                  href={lesson.href}
+                  href={makeHref(lesson.href)}
                   class={`flex items-center gap-3 pl-7 pr-4 py-2 text-sm transition-colors ${
                     isActive
                       ? `text-${color}-400 bg-${color}-500/10 border-r-2 border-${color}-500`
@@ -125,10 +126,10 @@ const { lessons, groups, currentSlug, backHref, backLabel, color, groupLabel } =
 
       {/* Flat mode */}
       {lessons && lessons.map((lesson, index) => {
-        const isActive = lesson.href === Astro.url.pathname;
+        const isActive = makeHref(lesson.href) === Astro.url.pathname;
         return (
           <a
-            href={lesson.href}
+            href={makeHref(lesson.href)}
             class={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
               isActive
                 ? `text-${color}-400 bg-${color}-500/10 border-r-2 border-${color}-500`

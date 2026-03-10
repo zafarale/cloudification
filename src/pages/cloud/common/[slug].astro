@@ -3,7 +3,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import LessonSidebar from '../../../components/LessonSidebar.astro';
 import { getCollection, render } from 'astro:content';
 import { Icon } from 'astro-icon/components';
-import { toCommonSlug } from '../../../lib/content-slugs';
+import { toCommonSlug, href as makeHref } from '../../../lib/content-slugs';
 
 export async function getStaticPaths() {
   const lessons = await getCollection('cloud', ({ id }) =>
@@ -83,7 +83,7 @@ const sidebarLessons = sorted.map(lesson => ({
 
       <!-- Breadcrumb -->
       <div class="flex items-center gap-2 text-xs text-gray-600 mb-8">
-        <a href="/cloud" class="hover:text-gray-400 transition-colors">cloud</a>
+        <a href={makeHref('/cloud')} class="hover:text-gray-400 transition-colors">cloud</a>
         <span>/</span>
         <span class="text-gray-400">Shared Concepts</span>
         <span>/</span>

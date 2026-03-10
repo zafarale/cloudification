@@ -1,5 +1,5 @@
 ---
-import { toCommonSlug } from '../lib/content-slugs';
+import { toCommonSlug, href as makeHref } from '../lib/content-slugs';
 
 interface Lesson {
   id: string;
@@ -47,7 +47,7 @@ const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
     <div class="rounded-xl divide-y" style="border: 1px solid var(--border); background: var(--bg-card); divide-color: var(--border);">
       {sorted.map(lesson => (
         <a
-          href={`${basePath}/${toCommonSlug(lesson.id)}`}
+          href={makeHref(`${basePath}/${toCommonSlug(lesson.id)}`)}
           class="flex items-center justify-between px-6 py-4 hover:bg-white/5 transition-colors group"
         >
           <div class="flex items-center gap-3">

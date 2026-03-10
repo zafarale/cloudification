@@ -1,4 +1,6 @@
 ---
+import { href as makeHref } from '../lib/content-slugs';
+
 interface Lesson {
   title: string;
   href: string;
@@ -15,7 +17,7 @@ const { prev, next, color = 'white' } = Astro.props;
 
 <div class="flex items-center justify-between mt-16 pt-8 border-t border-white/10">
   {prev ? (
-    <a href={prev.href} class={`flex flex-col gap-1 group`}>
+    <a href={makeHref(prev.href)} class={`flex flex-col gap-1 group`}>
       <span class="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
         ← Previous
       </span>
@@ -26,7 +28,7 @@ const { prev, next, color = 'white' } = Astro.props;
   ) : <div />}
 
   {next ? (
-    <a href={next.href} class="flex flex-col gap-1 items-end group">
+    <a href={makeHref(next.href)} class="flex flex-col gap-1 items-end group">
       <span class="text-xs text-gray-600 group-hover:text-gray-400 transition-colors">
         Next →
       </span>

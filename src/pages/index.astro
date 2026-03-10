@@ -2,6 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import FeatureCard from "../components/FeatureCard.astro";
 import { getCollection } from "astro:content";
+import { href as makeHref } from "../lib/content-slugs";
 
 const [cloud, programming, networking, cicd, data] = await Promise.all([
   getCollection("cloud"),
@@ -43,8 +44,8 @@ const [cloud, programming, networking, cicd, data] = await Promise.all([
         stack.
       </p>
       <div class="flex gap-3 mt-4">
-        <a href="/programming" class="btn btn-primary btn-sm">Start Learning</a>
-        <a href="/cloud" class="btn btn-ghost btn-sm">Explore Tracks</a>
+        <a href={makeHref('/programming')} class="btn btn-primary btn-sm">Start Learning</a>
+        <a href={makeHref('/cloud')} class="btn btn-ghost btn-sm">Explore Tracks</a>
       </div>
     </div>
   </div>

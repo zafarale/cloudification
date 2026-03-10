@@ -1,5 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
+import { href as makeHref } from '../lib/content-slugs';
 
 interface Lesson {
   title: string;
@@ -23,7 +24,7 @@ const { lessons, color } = Astro.props;
   <div class="rounded-xl border border-white/10 bg-white/5 divide-y divide-white/5">
     {lessons.map((lesson, index) => (
       <a
-        href={lesson.href}
+        href={makeHref(lesson.href)}
         class="flex items-center gap-6 px-6 py-5 hover:bg-white/5 transition-colors group"
       >
         <!-- Number or icon -->

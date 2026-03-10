@@ -1,5 +1,6 @@
 ---
 import { Icon } from 'astro-icon/components';
+import { href as makeHref } from '../lib/content-slugs';
 
 interface Props {
   title: string;
@@ -129,7 +130,7 @@ const colors = colorMap[color];
       {lessonCount !== undefined && (
         <span class="text-xs text-slate-500">{lessonCount} lessons</span>
       )}
-      <a href={href} class={`btn btn-sm btn-ghost ml-auto ${colors.text}`}>
+      <a href={makeHref(href)} class={`btn btn-sm btn-ghost ml-auto ${colors.text}`}>
         {ctaText} →
       </a>
     </div>
