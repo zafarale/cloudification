@@ -56,16 +56,13 @@ const nextLesson = next
   ogType="article"
   certifications={entry.data.certifications}
 >
-  <div class="flex min-h-screen">
-
-    <LessonSidebar
+  <LessonSidebar
       lessons={sidebarLessons}
       currentSlug={Astro.params.slug}
       backHref="/networking/common"
       backLabel="Shared Concepts"
       color="purple"
-    />
-
+  >
     <main class="flex-1 min-w-0 px-8 lg:px-16 py-12 max-w-3xl">
 
       <Breadcrumb crumbs={[
@@ -98,5 +95,5 @@ const nextLesson = next
       <PrevNext prev={prevLesson} next={nextLesson} color="purple" />
 
     </main>
-  </div>
+  </LessonSidebar>
 </BaseLayout>

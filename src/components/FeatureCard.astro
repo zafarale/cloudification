@@ -77,54 +77,62 @@ const colorMap = {
 const colors = colorMap[color];
 ---
 
-<a
-  href={href}
-  class={`group relative rounded-2xl border border-white/10 bg-white/5 p-7 transition-all duration-300 w-full sm:w-80 ${colors.border} ${colors.shadow}`}
->
-  <div class="text-3xl mb-5">
-    {iconDay && iconNight ? (
-      <>
-        <Icon name={iconDay} class="w-10 h-10 theme-icon-day" />
-        <Icon name={iconNight} class="w-10 h-10 theme-icon-night" />
-      </>
-    ) : icon ? (
-      <Icon name={icon} class="w-10 h-10" />
-    ) : (
-      emoji
-    )}
-  </div>
-  
-  <h2 class="text-xl font-bold font-mono mb-2">{title}</h2>
-  
-  <p class="text-slate-400 text-sm leading-relaxed mb-7">
-    {description}
-  </p>
-  
-  {tags.length > 0 && (
-    <div class="flex gap-2 mb-6">
-      {tags.map(tag => (
-        <span class={`px-2.5 py-1 rounded-full text-xs font-semibold border ${colors.tag}`}>
-          {tag.iconDay && tag.iconNight ? (
-            <>
-              <Icon name={tag.iconDay} class="w-10 h-10 theme-icon-day" />
-              <Icon name={tag.iconNight} class="w-10 h-10 theme-icon-night" />
-            </>
-          ) : tag.icon ? (
-            <Icon name={tag.icon} class="w-10 h-10" />
-          ) : (
-            tag.label
-          )}
-        </span>
-      ))}
+<div class={`card w-full sm:w-80 border border-white/10 bg-white/5 transition-all duration-300 ${colors.border} ${colors.shadow} group`}>
+  <div class="card-body gap-4">
+
+    <!-- Icon -->
+    <div class="text-3xl">
+      {iconDay && iconNight ? (
+        <>
+          <Icon name={iconDay} class="w-10 h-10 theme-icon-day" />
+          <Icon name={iconNight} class="w-10 h-10 theme-icon-night" />
+        </>
+      ) : icon ? (
+        <Icon name={icon} class="w-10 h-10" />
+      ) : (
+        emoji
+      )}
     </div>
-  )}
-  
-  <div class="flex items-center justify-between">
-    {lessonCount !== undefined ? (
-      <span class="text-xs text-slate-500">{lessonCount} lessons</span>
-    ) : (
-      <span class={`text-xs text-slate-500 ${colors.text} transition-colors duration-300`}>{ctaText}</span>
+
+    <!-- Title + description -->
+    <div>
+      <h2 class="card-title font-mono">{title}</h2>
+      <p class="text-slate-400 text-sm leading-relaxed mt-1">{description}</p>
+    </div>
+
+    <!-- Tags -->
+    {tags.length > 0 && (
+      <div class="flex flex-wrap gap-2 items-center">
+        {tags.map(tag => (
+          tag.icon || (tag.iconDay && tag.iconNight) ? (
+            <div class="avatar">
+              <div class={`mask mask-hexagon-2 w-8 h-8 ${colors.tag} flex items-center justify-center`}>
+                {tag.iconDay && tag.iconNight ? (
+                  <>
+                    <Icon name={tag.iconDay} class="w-5 h-5 theme-icon-day" />
+                    <Icon name={tag.iconNight} class="w-5 h-5 theme-icon-night" />
+                  </>
+                ) : (
+                  <Icon name={tag.icon!} class="w-5 h-5" />
+                )}
+              </div>
+            </div>
+          ) : (
+            <span class={`badge badge-sm border ${colors.tag}`}>{tag.label}</span>
+          )
+        ))}
+      </div>
     )}
-    <span class={`text-slate-500 ${colors.text} group-hover:translate-x-1 transition-all duration-300`}>→</span>
+
+    <!-- Footer -->
+    <div class="card-actions items-center justify-between mt-auto pt-1">
+      {lessonCount !== undefined && (
+        <span class="text-xs text-slate-500">{lessonCount} lessons</span>
+      )}
+      <a href={href} class={`btn btn-sm btn-ghost ml-auto ${colors.text}`}>
+        {ctaText} →
+      </a>
+    </div>
+
   </div>
-</a>
+</div>

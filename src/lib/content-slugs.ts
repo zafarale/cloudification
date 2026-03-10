@@ -1,7 +1,7 @@
 export const stripContentExtension = (value: string) =>
   value.replace(/\.mdx?$/, '');
 
-export const toTrackSlug = (id: string, track: 'aws' | 'azure') =>
+export const toTrackSlug = (id: string, track: 'aws' | 'azure' | 'gcp') =>
   stripContentExtension(id.replace(`${track}/`, ''));
 
 export const toCommonSlug = (id: string) =>

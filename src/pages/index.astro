@@ -28,20 +28,26 @@ const [cloud, programming, networking, cicd, data] = await Promise.all([
   ]}
 >
   <!-- Hero -->
-  <section class="max-w-5xl mx-auto px-6 pt-20 pb-16 text-center">
-    <p class="text-xs font-mono uppercase tracking-widest text-gray-500 mb-4">
-      Structured learning paths
-    </p>
-    <h1 class="text-4xl sm:text-5xl font-bold tracking-tight mb-5">
-      Everything a developer needs.<br />
-      <span class="text-gray-500">Nothing they don't.</span>
-    </h1>
-    <p class="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">
-      Five interconnected tracks — cloud, programming, networking, data, and
-      CI/CD. Each path is complete on its own; together they cover the full
-      stack.
-    </p>
-  </section>
+  <div class="hero py-24 px-6">
+    <div class="hero-content text-center flex-col">
+      <p class="text-xs font-mono uppercase tracking-widest text-gray-500 mb-4">
+        Structured learning paths
+      </p>
+      <h1 class="text-4xl sm:text-5xl font-bold tracking-tight max-w-3xl">
+        Everything a developer needs.<br />
+        <span class="text-gray-500">Nothing they don't.</span>
+      </h1>
+      <p class="text-lg text-gray-400 max-w-2xl leading-relaxed mt-2">
+        Five interconnected tracks — cloud, programming, networking, data, and
+        CI/CD. Each path is complete on its own; together they cover the full
+        stack.
+      </p>
+      <div class="flex gap-3 mt-4">
+        <a href="/programming" class="btn btn-primary btn-sm">Start Learning</a>
+        <a href="/cloud" class="btn btn-ghost btn-sm">Explore Tracks</a>
+      </div>
+    </div>
+  </div>
 
   <!-- Path cards -->
   <section

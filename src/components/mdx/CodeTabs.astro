@@ -109,11 +109,11 @@ const id = Math.random().toString(36).slice(2, 8);
     const tabs = Array.from(wrapper.querySelectorAll('[role="tab"]'));
     const panels = Array.from(wrapper.querySelectorAll('[role="tabpanel"]'));
 
-    function selectTab(index) {
+    function selectTab(index: number) {
       tabs.forEach((tab, i) => {
         const selected = i === index;
         tab.setAttribute('aria-selected', String(selected));
-        tab.tabIndex = selected ? 0 : -1;
+        (tab as HTMLElement).tabIndex = selected ? 0 : -1;
         tab.classList.toggle('text-blue-400', selected);
         tab.classList.toggle('border-blue-400', selected);
         tab.classList.toggle('text-gray-500', !selected);
@@ -131,15 +131,16 @@ const id = Math.random().toString(36).slice(2, 8);
     tabs.forEach((tab, i) => {
       tab.addEventListener('click', () => selectTab(i));
       tab.addEventListener('keydown', (e) => {
+        const ke = e as KeyboardEvent;
         let next = -1;
-        if (e.key === 'ArrowRight')     next = (i + 1) % tabs.length;
-        else if (e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
-        else if (e.key === 'Home')      next = 0;
-        else if (e.key === 'End')       next = tabs.length - 1;
+        if (ke.key === 'ArrowRight')     next = (i + 1) % tabs.length;
+        else if (ke.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+        else if (ke.key === 'Home')      next = 0;
+        else if (ke.key === 'End')       next = tabs.length - 1;
         if (next >= 0) {
-          e.preventDefault();
+          ke.preventDefault();
           selectTab(next);
-          tabs[next].focus();
+          (tabs[next] as HTMLElement).focus();
         }
       });
     });

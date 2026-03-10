@@ -3,7 +3,7 @@ title: "Collections"
 description: "ArrayList, HashMap, and the Java Collections Framework for storing and working with data"
 order: 5
 duration: 9
-tags: ["collections", "arraylist", "hashmap", "data-structures"]
+tags: ["collections", "arraylist", "hashmap", "data-structures", "java-21"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -24,35 +24,44 @@ Java's Collections Framework gives you ready-made data structures for storing an
 ## Collections Framework Hierarchy
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: Java Collections Framework Hierarchy
-    accDescr: Inheritance hierarchy showing Iterable at the top, then Collection, branching into List, Set, and Queue interfaces. List is implemented by ArrayList and LinkedList. Set is implemented by HashSet and TreeSet (sorted). Queue is also implemented by LinkedList. The Map interface is separate, implemented by HashMap and TreeMap (sorted).
+    accDescr: Iterable at top, Collection extends it, branching into List, Queue, and Set interfaces. List is implemented by ArrayList, Vector, and LinkedList. Vector is extended by Stack. Queue is extended by the Deque interface; PriorityQueue implements Queue. ArrayDeque and LinkedList both implement Deque. Set is extended by SortedSet, which is extended by NavigableSet. HashSet and LinkedHashSet implement Set directly. TreeSet implements NavigableSet.
     classDef iface fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
-    classDef impl  fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
-    classDef mapif fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef leaf  fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     linkStyle default stroke-width:2.5px
 
     ITER["fa:fa-circle-nodes Iterable"]:::iface
     COLL["fa:fa-layer-group Collection"]:::iface
-    LIST["fa:fa-list List<br/>(ordered, indexed)"]:::iface
-    SET["fa:fa-asterisk Set<br/>(unique values)"]:::iface
-    QUEUE["fa:fa-arrow-right-arrow-left Queue<br/>(FIFO/LIFO)"]:::iface
+    LIST["fa:fa-list List"]:::iface
+    QUEUE["fa:fa-arrow-right-arrow-left Queue"]:::iface
+    SET["fa:fa-asterisk Set"]:::iface
+    DEQUE["fa:fa-arrows-left-right Deque"]:::iface
+    SSET["fa:fa-filter SortedSet"]:::iface
+    NSET["fa:fa-circle-chevron-up NavigableSet"]:::iface
 
-    MAP["fa:fa-table-columns Map<br/>(key → value)"]:::mapif
-
-    AL["fa:fa-database ArrayList"]:::impl
-    LL["fa:fa-link LinkedList"]:::impl
-    HS["fa:fa-circle HashSet"]:::impl
-    TS["fa:fa-sort TreeSet<br/>(sorted)"]:::impl
-    HM["fa:fa-table HashMap"]:::impl
-    TM["fa:fa-sort TreeMap<br/>(sorted keys)"]:::impl
+    AL["fa:fa-database ArrayList"]:::leaf
+    VEC["fa:fa-server Vector"]:::leaf
+    STACK["fa:fa-bars-staggered Stack"]:::leaf
+    LL["fa:fa-link LinkedList"]:::leaf
+    PQ["fa:fa-list-ol PriorityQueue · Java 5"]:::leaf
+    AD["fa:fa-square ArrayDeque"]:::leaf
+    HS["fa:fa-circle HashSet"]:::leaf
+    LHS["fa:fa-circle-half-stroke LinkedHashSet · Java 1.4"]:::leaf
+    TS["fa:fa-sort TreeSet"]:::leaf
 
     ITER --> COLL
-    COLL --> LIST & SET & QUEUE
-    LIST --> AL & LL
-    SET --> HS & TS
-    QUEUE --> LL
-    MAP --> HM & TM
+    COLL --> LIST & QUEUE & SET
+    QUEUE --> DEQUE
+    SET --> SSET
+    SSET --> NSET
+    VEC --> STACK
+
+    LIST -.-> AL & VEC & LL
+    QUEUE -.-> PQ
+    DEQUE -.-> LL & AD
+    SET -.-> HS & LHS
+    NSET -.-> TS
 ```
 
 ## Choosing the Right Collection

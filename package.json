@@ -4,7 +4,8 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && bunx pagefind --site dist && cp -r dist/pagefind public/",
+    "build:ghpages": "DEPLOY_TARGET=ghpages astro build && bunx pagefind --site dist",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -15,11 +16,11 @@
     "@expressive-code/plugin-line-numbers": "^0.41.7",
     "@mermaid-js/layout-elk": "^0.2.0",
     "@tailwindcss/typography": "^0.5.19",
-    
     "astro": "^5.17.1",
     "astro-expressive-code": "^0.41.7",
     "astro-icon": "^1.1.5",
     "astro-mermaid": "^1.3.1",
+    "daisyui": "^5.5.19",
     "mermaid": "^11.12.3"
   },
   "devDependencies": {
@@ -28,6 +29,7 @@
     "@iconify-json/mdi": "^1.2.3",
     "@iconify-json/skill-icons": "^1.2.3",
     "@tailwindcss/vite": "^4.2.1",
+    "pagefind": "^1.4.0",
     "tailwindcss": "^4.2.1"
   }
 }

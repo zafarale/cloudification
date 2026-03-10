@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import LessonSidebar from '../../../components/LessonSidebar.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import LessonList from '../../../components/LessonList.astro';
+import PrevNext from '../../../components/PrevNext.astro';
+import { getCollection, render } from 'astro:content';
+import { buildSubTrackPaths, type SubTrackPageProps } from '../../../lib/lesson-layout';
+
+export async function getStaticPaths() {
+  const all = await getCollection('networking');
+  const entries = all.filter(({ id }) => id.startsWith('fundamentals/'));
+  return buildSubTrackPaths(entries, 'fundamentals/', '/networking/fundamentals');
+}
+
+const page = Astro.props as SubTrackPageProps;
+
+let Content: any = null;
+if (page.type === 'lesson') {
+  ({ Content } = await render(page.entry));
+}
+
+const sidebarGroups = page.sidebarData.mode === 'grouped' ? page.sidebarData.groups : undefined;
+const sidebarLessons = page.sidebarData.mode === 'flat' ? page.sidebarData.lessons : undefined;
+
+const pageTitle = page.type === 'lesson'
+  ? page.entry.data.title
+  : `${page.groupLabel} — Fundamentals`;
+
+const pageDescription = page.type === 'lesson'
+  ? page.entry.data.description
+  : `Networking fundamentals: ${page.groupLabel}.`;
+
+const currentSlug = Astro.params.slug as string;
+---
+
+<BaseLayout
+  title={pageTitle}
+  description={pageDescription}
+  keywords={page.type === 'lesson' ? (page.entry.data.tags || ['networking', 'fundamentals']) : ['networking', 'fundamentals', page.groupSlug]}
+  ogType={page.type === 'lesson' ? 'article' : undefined}
+  certifications={page.type === 'lesson' ? page.entry.data.certifications : undefined}
+>
+  <LessonSidebar
+      groups={sidebarGroups}
+      lessons={sidebarLessons}
+      currentSlug={currentSlug}
+      backHref="/networking/fundamentals"
+      backLabel="Fundamentals"
+      color="blue"
+  >
+    <main class="flex-1 min-w-0 px-8 lg:px-16 py-12 max-w-3xl">
+
+      {page.type === 'group-index' && (
+        <>
+          <Breadcrumb crumbs={[
+            { label: 'Networking', href: '/networking' },
+            { label: 'Fundamentals', href: '/networking/fundamentals' },
+            { label: page.groupLabel },
+          ]} />
+          <div class="mb-10">
+            <h1 class="text-4xl font-black tracking-tight font-mono mb-2 capitalize">
+              {page.groupLabel}
+            </h1>
+            <p class="text-gray-400 text-sm mt-2">
+              {page.groupLessons.length} {page.groupLessons.length === 1 ? 'lesson' : 'lessons'}
+              {page.totalDuration > 0 && ` · ${page.totalDuration} min`}
+            </p>
+          </div>
+          <LessonList lessons={page.groupLessons} color="blue" />
+        </>
+      )}
+
+      {page.type === 'lesson' && Content && (
+        <>
+          <Breadcrumb crumbs={[
+            { label: 'Networking', href: '/networking' },
+            { label: 'Fundamentals', href: '/networking/fundamentals' },
+            ...(page.breadcrumbExtra ? [page.breadcrumbExtra] : []),
+            { label: page.entry.data.title },
+          ]} />
+          <div class="mb-10">
+            <h1 class="text-4xl font-black tracking-tight font-mono mb-3">
+              {page.entry.data.title}
+            </h1>
+            <p class="text-gray-400">{page.entry.data.description}</p>
+            <div class="flex items-center gap-4 mt-4">
+              {page.entry.data.duration && (
+                <span class="text-xs text-gray-600">{page.entry.data.duration} min read</span>
+              )}
+              {page.entry.data.tags && page.entry.data.tags.map((tag: string) => (
+                <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+          <article class="prose prose-invert prose-blue max-w-none">
+            <Content />
+          </article>
+          <PrevNext prev={page.prevLesson} next={page.nextLesson} color="blue" />
+        </>
+      )}
+
+    </main>
+  </LessonSidebar>
+</BaseLayout>

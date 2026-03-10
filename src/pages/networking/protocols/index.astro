@@ -1,39 +1,55 @@
 ---
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PageHeader from '../../../components/PageHeader.astro';
-import LessonList from '../../../components/LessonList.astro';
+import FeatureCard from '../../../components/FeatureCard.astro';
 import { getCollection } from 'astro:content';
 
-const lessons = await getCollection('networking', ({ id }) =>
-  id.startsWith('protocols/')
-);
-const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
-const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+const all = await getCollection('networking', ({ id }) => id.startsWith('protocols/'));
 
-const lessonItems = sorted.map(lesson => ({
-  title: lesson.data.title,
-  description: lesson.data.description,
-  href: `/networking/protocols/${lesson.id.replace('protocols/', '').replace(/\.md$/, '').replace(/\.mdx$/, '')}`,
-  order: lesson.data.order,
-  duration: lesson.data.duration,
-  tags: lesson.data.tags,
-  icon: lesson.data.icon,
-}));
+// Group by first segment after 'protocols/'
+const grouped: Record<string, typeof all> = {};
+for (const lesson of all) {
+  const parts = lesson.id.replace('protocols/', '').split('/');
+  if (parts.length < 2) continue;
+  const group = parts[0];
+  if (!grouped[group]) grouped[group] = [];
+  grouped[group].push(lesson);
+}
+
+const totalLessons = all.length;
+const totalDuration = all.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
 ---
 
-<BaseLayout 
+<BaseLayout
   title="Network Protocols"
-  description="Learn network protocols that power the internet. HTTP, DNS, WebSockets, gRPC, and application-layer communication."
-  keywords={['network protocols', 'HTTP', 'DNS', 'WebSockets', 'gRPC', 'application layer', 'protocol tutorials']}
+  description="Learn network protocols that power the internet. HTTP, TCP/IP, DNS, WebSockets, gRPC, and application-layer communication."
+  keywords={['network protocols', 'HTTP', 'TCP/IP', 'DNS', 'WebSockets', 'gRPC', 'application layer']}
 >
   <PageHeader
     title="Protocols"
-    description="HTTP, DNS, WebSockets, gRPC, and the application-layer protocols that power modern systems."
+    description="HTTP, TCP/IP, DNS, WebSockets, gRPC, and the protocols that power modern networked systems."
     icon="🔌"
     backHref="/networking"
     backLabel="Back to Networking"
-    lessonCount={sorted.length}
+    lessonCount={totalLessons}
     totalDuration={totalDuration}
   />
-  <LessonList lessons={lessonItems} color="green" />
+  <section class="max-w-6xl mx-auto px-6 pb-16 flex flex-wrap justify-center gap-6">
+    {Object.entries(grouped).map(([groupSlug, lessons]) => {
+      const sorted = [...lessons].sort((a, b) => a.data.order - b.data.order);
+      const label = groupSlug.replace(/-/g, ' ');
+      return (
+        <FeatureCard
+          title={label}
+          description={sorted.map(l => l.data.title).join(', ')}
+          href={`/networking/protocols/${groupSlug}`}
+          color="green"
+          icon="mdi:network-outline"
+          lessonCount={sorted.length}
+          ctaText={`Explore ${label}`}
+        />
+      );
+    })}
+  </section>
 </BaseLayout>
+

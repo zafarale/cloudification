@@ -7,9 +7,14 @@ import expressiveCode from "astro-expressive-code";
 import icon from "astro-icon";
 import mermaid from "astro-mermaid";
 
+const isGHPages = process.env.DEPLOY_TARGET === 'ghpages';
+const site = isGHPages ? 'https://zafarale.github.io' : 'https://acert.dev';
+const base = isGHPages ? '/cloudification' : undefined;
 
 // https://astro.build/config
 export default defineConfig({
+  site,
+  base,
   vite: {
     plugins: [tailwindcss()],
   },
@@ -28,7 +33,7 @@ export default defineConfig({
       autoTheme: true,
       mermaidConfig: {
         theme: 'base',
-        flowchart: { htmlLabels: true },
+        flowchart: { htmlLabels: true, nodeSpacing: 70, rankSpacing: 90 },
         themeVariables: {
           background: 'transparent',
           mainBkg: 'transparent',
@@ -39,6 +44,7 @@ export default defineConfig({
           edgeLabelBackground: 'transparent',
           clusterBkg: 'transparent',
           clusterBorder: '#374151',
+          fontSize: '18px',
         },
       },
     }),

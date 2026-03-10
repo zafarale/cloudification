@@ -1,5 +1,6 @@
 ---
 import ThemeToggle from '../components/ThemeToggle.astro';
+import SearchModal from '../components/SearchModal.astro';
 
 interface Props {
   title: string;
@@ -116,22 +117,45 @@ const fullTitle = `${title} — Acert`;
   </head>
   <body>
     <nav
-      class="px-8 py-4 flex items-center justify-between sticky top-0 backdrop-blur-md z-50"
-      style="background-color: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--border);"
+      data-pagefind-ignore
+      class="px-6 py-3 grid grid-cols-[auto_1fr_auto] items-center gap-4 sticky top-0 backdrop-blur-md z-50"
+      style="background-color: color-mix(in srgb, var(--bg) 85%, transparent); border-bottom: 1px solid var(--border); box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.45);"
     >
-      <a href="/" class="font-mono font-bold text-lg tracking-tight transition-colors"
+      <!-- Left: logo -->
+      <a href="/" class="font-mono font-bold text-lg tracking-tight transition-colors shrink-0"
         style="color: var(--text)">
         acert
       </a>
-      <div class="flex items-center gap-6 text-sm" style="color: var(--text-muted)">
-        <a href="/programming" class="hover:text-orange-400 transition-colors">Programming</a>
-        <a href="/cloud" class="hover:text-blue-400 transition-colors">Cloud</a>
-        <a href="/cicd" class="hover:text-green-400 transition-colors">CI/CD</a>
+
+      <!-- Center: search bar (up to 60% of available space via max-w) -->
+      <div class="flex justify-center">
+        <div class="w-full max-w-[60%]">
+          <SearchModal />
+        </div>
+      </div>
+
+      <!-- Right: nav links + theme toggle -->
+      <div class="flex items-center gap-5 text-sm shrink-0" style="color: var(--text-muted)">
+        <a href="/programming" class="hover:text-orange-400 transition-colors hidden md:inline">Programming</a>
+        <a href="/cloud" class="hover:text-blue-400 transition-colors hidden md:inline">Cloud</a>
+        <a href="/cicd" class="hover:text-green-400 transition-colors hidden md:inline">CI/CD</a>
         <ThemeToggle />
       </div>
     </nav>
 
-    <slot />
+    <div data-pagefind-body>
+      <slot />
+    </div>
+
+    <!-- Search modal: direct child of body avoids backdrop-filter containment in nav -->
+    <dialog id="search-modal" class="modal">
+      <div class="modal-box max-w-2xl p-0 overflow-hidden" style="background: var(--bg-card); border: 1px solid var(--border);">
+        <div id="pagefind-search" class="p-4"></div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
 
   </body>
 </html>

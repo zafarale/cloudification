@@ -5,11 +5,19 @@ interface Lesson {
   title: string;
   href: string;
   order: number;
-  icon?: string;        // ← add this
+  icon?: string;
+}
+
+interface LessonGroup {
+  label: string;
+  href?: string;
+  isShared?: boolean;
+  lessons: Lesson[];
 }
 
 interface Props {
-  lessons: Lesson[];
+  lessons?: Lesson[];
+  groups?: LessonGroup[];
   currentSlug: string;
   backHref: string;
   backLabel: string;
@@ -17,47 +25,130 @@ interface Props {
   groupLabel?: string;
 }
 
-const { lessons, currentSlug, backHref, backLabel, color, groupLabel } = Astro.props;
+const { lessons, groups, currentSlug, backHref, backLabel, color, groupLabel } = Astro.props;
 ---
 
-<aside class="hidden lg:flex flex-col w-64 shrink-0 border-r border-white/10 pt-8 pb-24 sticky top-0 h-screen overflow-y-auto">
-  <div class="px-4 mb-6">
-    <a href={backHref} class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-      ← {backLabel}
-    </a>
+<div class="drawer lg:drawer-open">
+  <input id="lesson-drawer" type="checkbox" class="drawer-toggle" />
+
+  <!-- Main content -->
+  <div class="drawer-content flex flex-col min-h-screen">
+
+    <!-- Mobile top bar -->
+    <div class="lg:hidden flex items-center gap-2 px-4 py-2 border-b border-white/10 min-h-12">
+      <label for="lesson-drawer" aria-label="open sidebar" class="btn btn-ghost btn-sm btn-square is-drawer-close">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="h-5 w-5 stroke-current">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </label>
+      <span class="text-sm font-mono text-slate-400 is-drawer-close">← {backLabel}</span>
+    </div>
+
+    <slot />
   </div>
 
-  {groupLabel && (
-    <div class="px-4 mb-4">
-      <span class="text-xs font-semibold uppercase tracking-widest text-gray-600">
-        {groupLabel}
-      </span>
-    </div>
-  )}
+  <!-- Sidebar -->
+  <div class="drawer-side z-30">
+    <label for="lesson-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
 
-  {lessons.map((lesson, index) => {
-    const isActive = lesson.href === Astro.url.pathname;
-    return (
-      <a
-        href={lesson.href}
-        class={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
-          isActive
-            ? `text-${color}-400 bg-${color}-500/10 border-r-2 border-${color}-500`
-            : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
-        }`}
-      >
-        <!-- Icon or number -->
-        {lesson.icon ? (
-          <div class="w-4 h-4 shrink-0 opacity-60">
-            <Icon name={lesson.icon} class="w-4 h-4" />
-          </div>
-        ) : (
-          <span class="tabular-nums text-xs w-5 shrink-0 opacity-50 font-mono">
-            {String(index + 1).padStart(2, '0')}
+    <aside class="w-64 min-h-screen bg-base-100 border-r border-white/10 flex flex-col pt-8 pb-24 overflow-y-auto">
+
+      <div class="px-4 mb-6 flex items-center justify-between">
+        <a href={backHref} class="text-xs text-gray-500 hover:text-gray-300 transition-colors">
+          ← {backLabel}
+        </a>
+        <label for="lesson-drawer" aria-label="close sidebar" class="btn btn-ghost btn-xs lg:hidden is-drawer-open">✕</label>
+      </div>
+
+      {groupLabel && (
+        <div class="px-4 mb-4">
+          <span class="text-xs font-semibold uppercase tracking-widest text-gray-600">
+            {groupLabel}
           </span>
-        )}
-        {lesson.title}
-      </a>
-    );
-  })}
-</aside>
+        </div>
+      )}
+
+      {/* Grouped tree mode */}
+      {groups && groups.map((group) => {
+        const groupActive = group.href && group.href === Astro.url.pathname;
+        return (
+          <div class="mb-1">
+            {group.href ? (
+              <a
+                href={group.href}
+                class={`flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest transition-colors ${
+                  groupActive
+                    ? `text-${color}-400`
+                    : 'text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                <span class={`w-1.5 h-1.5 rounded-full bg-${color}-500 opacity-60 shrink-0`}></span>
+                {group.label}
+              </a>
+            ) : (
+              <div class="flex items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-gray-600">
+                {group.isShared
+                  ? <span class="w-1.5 h-1.5 rounded border border-white/20 shrink-0" />
+                  : <span class={`w-1.5 h-1.5 rounded-full bg-${color}-500 opacity-40 shrink-0`}></span>
+                }
+                {group.label}
+                {group.isShared && <span class="ml-1 font-normal normal-case tracking-normal text-gray-700">shared</span>}
+              </div>
+            )}
+            {group.lessons.map((lesson, index) => {
+              const isActive = lesson.href === Astro.url.pathname;
+              return (
+                <a
+                  href={lesson.href}
+                  class={`flex items-center gap-3 pl-7 pr-4 py-2 text-sm transition-colors ${
+                    isActive
+                      ? `text-${color}-400 bg-${color}-500/10 border-r-2 border-${color}-500`
+                      : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+                  }`}
+                >
+                  {lesson.icon ? (
+                    <div class="w-4 h-4 shrink-0 opacity-60">
+                      <Icon name={lesson.icon} class="w-4 h-4" />
+                    </div>
+                  ) : (
+                    <span class="tabular-nums text-xs w-5 shrink-0 opacity-40 font-mono">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  )}
+                  {lesson.title}
+                </a>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* Flat mode */}
+      {lessons && lessons.map((lesson, index) => {
+        const isActive = lesson.href === Astro.url.pathname;
+        return (
+          <a
+            href={lesson.href}
+            class={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+              isActive
+                ? `text-${color}-400 bg-${color}-500/10 border-r-2 border-${color}-500`
+                : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'
+            }`}
+          >
+            {lesson.icon ? (
+              <div class="w-4 h-4 shrink-0 opacity-60">
+                <Icon name={lesson.icon} class="w-4 h-4" />
+              </div>
+            ) : (
+              <span class="tabular-nums text-xs w-5 shrink-0 opacity-50 font-mono">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+            )}
+            {lesson.title}
+          </a>
+        );
+      })}
+
+    </aside>
+  </div>
+</div>
