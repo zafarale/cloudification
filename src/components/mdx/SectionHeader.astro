@@ -1,0 +1,40 @@
+---
+import { Icon } from 'astro-icon/components';
+
+interface Props {
+  icon?: string;
+  iconSize?: number;
+  level?: 1 | 2 | 3 | 4;
+}
+
+const { icon, iconSize, level = 2 } = Astro.props;
+const Tag = `h${level}` as 'h1' | 'h2' | 'h3' | 'h4';
+
+const sizeMap = {
+  1: { icon: 'w-10 h-10', text: 'text-4xl' },
+  2: { icon: 'w-7 h-7',   text: 'text-2xl' },
+  3: { icon: 'w-5 h-5',   text: 'text-xl'  },
+  4: { icon: 'w-4 h-4',   text: 'text-lg'  },
+};
+
+const iconSizeMap: Record<number, string> = {
+  4:  'w-4 h-4',
+  5:  'w-5 h-5',
+  6:  'w-6 h-6',
+  7:  'w-7 h-7',
+  8:  'w-8 h-8',
+  10: 'w-10 h-10',
+  12: 'w-12 h-12',
+  16: 'w-16 h-16',
+};
+
+const s = sizeMap[level];
+const iconClass = iconSize ? (iconSizeMap[iconSize] ?? s.icon) : s.icon;
+---
+
+<div class="flex items-center gap-3 not-prose mt-10 mb-4">
+  {icon && <Icon name={icon} class={iconClass} aria-hidden="true" />}
+  <Tag class={`${s.text} font-black tracking-tight font-mono`}>
+    <slot />
+  </Tag>
+</div>

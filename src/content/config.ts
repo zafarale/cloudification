@@ -18,4 +18,5 @@ export const collections = {
   cicd:        defineCollection({ schema: lessonSchema }),
   data:        defineCollection({ schema: lessonSchema }),
   networking:  defineCollection({ schema: lessonSchema }),
+  linux:       defineCollection({ schema: lessonSchema }),
 };

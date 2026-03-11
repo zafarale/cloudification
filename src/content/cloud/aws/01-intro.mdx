@@ -4,9 +4,9 @@ description: "AWS global infrastructure, service categories, account hierarchy, 
 order: 1
 duration: 18
 tags: ["intro", "aws", "cloud", "global-infrastructure", "iam"]
-icon: "logos:aws"
+icon: "cloud-icons/aws-cloud"
 certifications: ["AWS Cloud Practitioner", "AWS Solutions Architect Associate"]
-sharedConcepts: ["iam-concepts", "networking-basics"]
+sharedConcepts: ["iam-concepts", "regions-and-availability-zones", "networking-basics"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -302,6 +302,27 @@ aws iam list-users
   answer="The instance is terminated and a replacement launches in us-east-1b only if you specified multi-AZ subnets in the ASG"
   explanation="AWS does not automatically move instances between AZs. Auto Scaling Groups launch replacements in healthy AZs — but only in the subnets you specified. If you configured the ASG with only a single AZ subnet, it will try to re-launch in the same failed AZ and keep failing. Always configure ASGs with subnets in at least two AZs."
 />
+
+---
+
+## Cost Implications
+
+AWS billing is granular and service-specific, but several structural costs affect every account from day one.
+
+| Billing Concept | Detail |
+|---|---|
+| **Free Tier** | 12 months limited free for many services (750 hrs/month t3.micro, 5 GB S3, 750 hrs/month RDS); always-free for others (Lambda 1M req/month, DynamoDB 25 GB) |
+| **Regional pricing variation** | Same service costs 10–20% more in some regions vs others. Always verify in the pricing calculator per region before choosing. |
+| **Consolidated billing** | AWS Organizations aggregates usage across member accounts for volume discounts. Use a dedicated management/billing account — never the workload accounts. |
+| **Data transfer** | Inbound to AWS: free. Outbound to internet: $0.09/GB. Cross-region: $0.02/GB. Cross-AZ within same region: $0.01/GB each way. |
+
+<Callout type="warning" title="Enable Cost Explorer on Day One">
+AWS does not show cost trends by default — the billing page shows only month-to-date totals. Enable **Cost Explorer** immediately, set a billing alert on the root account at a sensible threshold, and tag every resource with `project` and `environment` tags from the start. Retrofitting tags after the fact is painful and leaves weeks of costs unallocated.
+</Callout>
+
+<Callout type="tip" title="Free Tier Has Hidden Expiry Traps">
+The 12-month free tier starts from the date of **account creation** — not from when you first deploy a service. An RDS database that was free in month 1 starts incurring charges in month 13 even if usage is identical. Check which free tier services expire with a billing alert. Always-free services (Lambda, DynamoDB, SQS within limits) never expire.
+</Callout>
 
 ---
 

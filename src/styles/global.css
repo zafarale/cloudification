@@ -168,6 +168,19 @@ html.theme-night .theme-icon-night {
 .mermaid svg rect.background {
   fill: transparent !important;
 }
+/* htmlLabels renders node text as divs inside <foreignObject> — clear their backgrounds */
+pre.mermaid svg foreignObject > div,
+pre.mermaid svg .label-container,
+pre.mermaid svg .nodeLabel {
+  background: transparent !important;
+  color: #e2e8f0 !important;
+}
+/* Edge labels */
+pre.mermaid svg .edgeLabel .label,
+pre.mermaid svg .edgeLabel rect {
+  background: transparent !important;
+  fill: transparent !important;
+}
 /* Let mermaid SVGs render at their natural size (respects nodeSpacing/rankSpacing)
    and scroll horizontally rather than scaling everything down */
 pre.mermaid {
@@ -175,7 +188,36 @@ pre.mermaid {
 }
 pre.mermaid svg {
   max-width: none !important;
+  min-width: 520px;
   height: auto;
+}
+
+/* Search modal */
+dialog.search-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  top: 15vh;
+  width: min(680px, calc(100vw - 2rem));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 0;
+  overflow: hidden;
+  z-index: 9999;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+dialog.search-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+}
+html.theme-day dialog.search-dialog {
+  background: #fff;
+  border-color: #e2e8f0;
+}
+html.theme-day dialog.search-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.35);
 }
 
 /* Keyboard navigation — focus ring */

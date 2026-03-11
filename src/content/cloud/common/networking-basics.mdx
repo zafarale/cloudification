@@ -1,7 +1,7 @@
 ---
 title: "Cloud Networking Basics"
 description: "Virtual networks, subnets, routing, firewalls, NAT, and availability zones — the platform-agnostic foundations"
-order: 2
+order: 3
 duration: 20
 tags: ["networking", "vpc", "vnet", "subnets", "routing", "fundamentals"]
 sharedWith: ["aws", "azure", "gcp"]
@@ -351,6 +351,37 @@ Public internet connectivity isn't always acceptable. Two alternatives:
 | DB reachable from wrong tier | Security group references wrong source | Audit SG rules; enforce source-group pattern |
 | Cross-AZ latency surprises | App servers in AZ-A calling DB in AZ-C | Deploy databases in each AZ or use multi-AZ replicas |
 | CIDR overlap on peering | Two VPCs have overlapping address spaces | Plan CIDR at account inception; peering fails on overlap |
+
+---
+
+## Cost Implications
+
+Networking is one of the most surprising cloud cost categories — the resources you create to make networking work often cost more than the compute itself.
+
+| Resource | AWS | Azure | GCP |
+|---|---|---|---|
+| **VPC / VNet creation** | Free | Free | Free |
+| **Subnets** | Free | Free | Free |
+| **Security groups / NSGs / Firewall rules** | Free | Free | Free |
+| **Internet Gateway (IGW)** | Free | Free (included) | Free |
+| **NAT Gateway** | $0.045/hr + $0.045/GB | $0.045/hr + $0.045/GB | $0.01/hr + $0.045/GB |
+| **Data transfer — inbound** | Free | Free | Free |
+| **Data transfer — outbound (internet)** | $0.09/GB | $0.08/GB | $0.08–0.12/GB |
+| **Data transfer — cross-AZ (same region)** | $0.01/GB each way | $0.01/GB | $0.01/GB |
+| **VPC Peering data transfer** | $0.01/GB cross-AZ | $0.01/GB | $0.01/GB |
+| **VPN Gateway** | $0.05/hr + $0.05/GB | $0.04–0.19/hr | $0.05/hr + $0.05/GB |
+
+<Callout type="warning" title="NAT Gateway: The Hidden Monthly Fixed Cost">
+A NAT Gateway runs 24/7 regardless of traffic — at $0.045/hr that's **~$32/month per NAT Gateway** before any data processing fees. A common pattern is deploying one NAT per AZ (3 AZs = $96/month) without realising the cost. For dev/test environments, consider a single NAT in one AZ or a NAT instance (EC2 `t3.nano` at ~$3/month) instead of a managed NAT Gateway.
+</Callout>
+
+<Callout type="warning" title="Cross-AZ Traffic is the Silent Scaling Cost">
+Data transfer **between Availability Zones** within the same region costs $0.01/GB each way on all three providers. A microservices architecture where 10 services each pass 1 TB/day of data across AZ boundaries incurs **~$300/day** in cross-AZ transfer fees. Minimise cross-AZ traffic by co-locating tightly coupled services in the same AZ, using availability-zone aware load balancing, and co-locating read replicas with the application tier.
+</Callout>
+
+<Callout type="tip" title="Egress to the Internet is the Largest Networking Line Item">
+At $0.08–0.09/GB, serving 100 TB/month of data directly from cloud compute or storage to end users costs **~$8,000–$9,000/month in egress alone**. Use a CDN (CloudFront, Azure CDN, Cloud CDN) to cache responses at edge locations — CDN egress rates are typically 50–80% cheaper and cache hits produce zero origin egress charges.
+</Callout>
 
 ---
 

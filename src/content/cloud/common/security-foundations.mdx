@@ -1,7 +1,7 @@
 ---
 title: "Cloud Security Foundations"
 description: "Platform-agnostic security fundamentals for cloud systems: identity, segmentation, least privilege, defense in depth, and incident readiness."
-order: 3
+order: 4
 duration: 22
 tags: ["security", "fundamentals", "cloud", "iam", "networking"]
 sharedWith: ["aws", "azure", "gcp"]
@@ -302,6 +302,32 @@ Security is not a one-time checklist. It is continuous hardening, monitoring, an
 | Unpatched internet-facing service | Manual patching, unmanaged dependencies | Automated patching, vulnerability scanning in CI |
 | No MFA on privileged accounts | Friction of setup overlooked | Conditional Access / MFA policy enforcement |
 | No alerting on changes | Unknown unknowns stay unknown | CloudTrail + CloudWatch Alerts / Azure Monitor, day 1 |
+
+---
+
+## Cost Implications of Security Controls
+
+Security is not free — but the cost of not investing in it is orders of magnitude higher. Understanding where security services are free vs metered helps you prioritise coverage without bill shock.
+
+```mermaid
+flowchart LR
+    accTitle: Security control cost categories
+    accDescr: Cloud security controls grouped by cost model — always free controls like IAM and firewall rules, metered controls like KMS and audit log storage, and premium services like threat detection platforms.
+    classDef free fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef paid fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef prem fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    FREE["fa:fa-check Always Free<br/>IAM / RBAC policies<br/>Firewall rules / NSGs / VPC<br/>Security groups<br/>Managed / workload identities"]:::free
+    METERED["fa:fa-gauge Metered Usage<br/>KMS key versions (~$0.06/key/month)<br/>KMS crypto operations (~$0.03/10k)<br/>Secrets Manager versions<br/>Audit log storage (Data Access tier)"]:::paid
+    PREMIUM["fa:fa-shield Premium Services<br/>AWS Security Hub / GuardDuty<br/>Azure Defender for Cloud P2<br/>GCP Security Command Center Premium<br/>Costs $10–$30/resource/month"]:::prem
+```
+
+**Free controls deliver most of the risk reduction.** Properly configured IAM, network segmentation, and default-deny firewall rules prevent the majority of cloud security incidents at zero incremental cost. Premium threat detection services add detection and posture management value but should come after foundational controls are in place.
+
+<Callout type="warning" title="The High-Cost Trap: Verbose Audit Logs">
+Data Access audit logs (reading/writing individual objects or rows) generate enormous volume in active systems. Routing all audit logs to a pay-per-GB logging service without filtering can cost hundreds of dollars per month per service. Enable Data Access logs selectively on the highest-risk resources (production data stores, secrets) and archive to object storage for the rest.
+</Callout>
 
 ---
 

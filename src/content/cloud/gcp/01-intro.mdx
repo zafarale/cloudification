@@ -6,7 +6,7 @@ duration: 18
 tags: ["intro", "gcp", "cloud", "global-infrastructure", "iam"]
 icon: "logos:google-cloud-platform"
 certifications: ["Google Cloud Digital Leader", "Google Associate Cloud Engineer", "Google Professional Cloud Architect"]
-sharedConcepts: ["iam-concepts", "networking-basics"]
+sharedConcepts: ["iam-concepts", "regions-and-availability-zones", "networking-basics"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -261,3 +261,26 @@ gcloud config configurations activate prod
   ]}
   explanation="GCP IAM policies are additive and inherit downward through the hierarchy. A role granted at a Folder applies to all projects inside that folder and any nested subfolders — there is no way to block inheritance from a parent."
 />
+
+---
+
+## Cost Implications
+
+GCP billing operates at the project level and includes several structural advantages (per-second billing, no AZ transfer charges) alongside services that significantly increase cost when enabled broadly.
+
+| Billing Concept | Detail |
+|---|---|
+| **New customer credit** | $300 free credit for 90 days — applies to all services |
+| **Always Free products** | 1× e2-micro VM (us-central1/us-east1/us-west1), 5 GB Cloud Storage, 1 TB BigQuery queries/month, 2M Cloud Functions invocations/month — never expire |
+| **Per-second billing** | GCE instances are billed per second after the first minute. Spinning up a VM for 30-second jobs costs ~1/120th of an hourly rate. |
+| **Intra-region transfer** | Free between resources in the same region — no cross-AZ transfer charges within a GCP region (unlike AWS/Azure at $0.01/GB). |
+| **Egress to internet** | $0.08–$0.12/GB based on destination. Intra-region: free. Cross-region within GCP: $0.01/GB. |
+| **Project-level billing** | Each project has exactly one billing account attached. Use one project per workload + environment for clean cost allocation. |
+
+<Callout type="warning" title="Always Free Tier Has Regional Restrictions">
+The always-free e2-micro VM only applies in `us-central1`, `us-east1`, and `us-west1`. Deploying e2-micro instances in other regions (e.g. `europe-west1`) incurs compute charges. The 5 GB Cloud Storage free tier counts only US multi-region or US regional buckets — EU and AP buckets are not included.
+</Callout>
+
+<Callout type="tip" title="Set Budget Alerts at the Billing Account Level">
+GCP Budget Alerts can be set on individual projects or the entire billing account. Set a budget on the billing account first to prevent surprises from any project, then add per-project budgets for teams that need cost visibility. Programmatic notifications via Pub/Sub can auto-disable billing on runaway projects — essential for dev/sandbox accounts.
+</Callout>

@@ -361,6 +361,29 @@ Then write the policy to match exactly that — and add a comment in your IaC co
 
 ---
 
+## Cost Implications
+
+IAM itself is **free on all three major cloud providers** — you can create unlimited policies, roles, groups, and service accounts at no charge. Costs come from advanced identity features layered on top.
+
+| Feature | AWS | Azure | GCP |
+|---|---|---|---|
+| **Core IAM** | Free | Free (Entra ID Free tier) | Free |
+| **SSO / Enterprise federation** | IAM Identity Center: free | Entra ID P1: $6/user/month (Conditional Access + SSO) | Cloud Identity: free (limited); Google Workspace for advanced |
+| **PIM / Just-in-Time access** | No built-in PIM | Entra ID P2: $9/user/month (Privileged Identity Management) | No native PIM; use IAM Conditions + custom workflows |
+| **Hardware MFA tokens** | OATH TOTP: free; hardware keys: ~$25–65 one-time | FIDO2/hardware keys: ~$25–65 | FIDO2/hardware keys: ~$25–65 |
+| **Secrets storage** | Secrets Manager: $0.40/secret/month + $0.05/10k ops | Key Vault: $0.03/10k ops; HSM key: $1.00/key/month | Secret Manager: $0.06/version/month + $0.03/10k ops |
+| **Access reviews / audit** | IAM Access Analyzer: free | Entra ID P2 required for full access reviews | IAM Recommender: free |
+
+<Callout type="warning" title="Entra ID P2 Licensing is Per-User and Required for PIM">
+Azure **Privileged Identity Management (PIM)** — the feature that enables just-in-time role elevation — requires Entra ID P2 at $9/user/month per eligible administrator. In a 50-person team where 10 people need PIM-managed elevated access, that is $90/month for those 10 users alone. Budget for P2 licences when designing an Azure RBAC strategy that includes time-limited privileged access.
+</Callout>
+
+<Callout type="tip" title="Use SSM Parameter Store Instead of Secrets Manager for Non-Rotating Config">
+AWS Secrets Manager at $0.40/secret/month is the right choice when you need automatic rotation via Lambda integration. For static configuration values and feature flags that don't rotate, **SSM Parameter Store Standard** is free with no limits on standard-tier parameters. At 100 secrets, the monthly cost difference is $40 — significant for small teams or high parameter counts.
+</Callout>
+
+---
+
 ## IAM Architecture Overview
 
 How IAM fits into a real cloud deployment — a developer authenticates through an identity provider, IAM evaluates the request, and the application is granted scoped access to protected resources.

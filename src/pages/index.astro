@@ -4,12 +4,13 @@ import FeatureCard from "../components/FeatureCard.astro";
 import { getCollection } from "astro:content";
 import { href as makeHref } from "../lib/content-slugs";
 
-const [cloud, programming, networking, cicd, data] = await Promise.all([
+const [cloud, programming, networking, cicd, data, linux] = await Promise.all([
   getCollection("cloud"),
   getCollection("programming"),
   getCollection("networking"),
   getCollection("cicd"),
   getCollection("data"),
+  getCollection("linux"),
 ]);
 ---
 
@@ -136,6 +137,20 @@ const [cloud, programming, networking, cicd, data] = await Promise.all([
       ]}
       lessonCount={cicd.length}
       ctaText="Explore CI/CD"
+    />
+
+    <FeatureCard
+      title="Linux"
+      description="The OS that runs everything. Filesystem, users and permissions, shell scripting, networking, and systemd — essential for every developer and engineer."
+      href="/linux"
+      icon="mdi:linux"
+      color="yellow"
+      tags={[
+        { label: "bash" },
+        { label: "systemd" },
+      ]}
+      lessonCount={linux.length}
+      ctaText="Explore Linux"
     />
   </section>
 </BaseLayout>

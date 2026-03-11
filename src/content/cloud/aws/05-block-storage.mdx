@@ -1,11 +1,12 @@
 ---
 title: "Block Storage on AWS: EBS Deep Dive"
 description: "Master AWS Elastic Block Store — volume types with real performance numbers, instance store trade-offs, filesystem setup, online resizing, snapshots, encryption, and production operations."
-order: 4
+order: 5
 duration: 28
 tags: ["storage", "ebs", "block-storage", "ec2", "performance", "snapshots"]
-icon: "mdi:harddisk"
+icon: "cloud-icons/amazon-elastic-block-store"
 certifications: ["AWS Solutions Architect Associate", "AWS SysOps Administrator Associate"]
+sharedConcepts: ["block-storage-concepts"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -388,7 +389,7 @@ Attaching a standard ext4 volume to two instances simultaneously will corrupt da
 EBS snapshots are **incremental**, stored in S3. Only changed blocks are stored after the first full snapshot, keeping storage costs proportional to churn rather than volume size.
 
 ```mermaid
-flowchart LR
+flowchart TD
     accTitle: Snapshots: Backup, Recovery, and Automation
     accDescr: Flowchart (lr) showing snapshot store, full, incremental
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8

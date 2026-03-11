@@ -3,21 +3,24 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PageHeader from '../../../components/PageHeader.astro';
 import LessonList from '../../../components/LessonList.astro';
 import { getCollection } from 'astro:content';
-import { toTrackSlug } from '../../../lib/content-slugs';
+import { toTrackSlug, lessonListIconMap } from '../../../lib/content-slugs';
 
 const lessons = await getCollection('cloud', ({ id }) => id.startsWith('aws/'));
 const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
 const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
 
-const lessonItems = sorted.map(lesson => ({
-  title: lesson.data.title,
-  description: lesson.data.description,
-  href: `/cloud/aws/${toTrackSlug(lesson.id, 'aws')}`,
-  order: lesson.data.order,
-  duration: lesson.data.duration,
-  tags: lesson.data.tags,
-  icon: lesson.data.icon,
-}));
+const lessonItems = sorted.map(lesson => {
+  const slug = toTrackSlug(lesson.id, 'aws');
+  return {
+    title: lesson.data.title,
+    description: lesson.data.description,
+    href: `/cloud/aws/${slug}`,
+    order: lesson.data.order,
+    duration: lesson.data.duration,
+    tags: lesson.data.tags,
+    icon: lessonListIconMap[slug] ?? lesson.data.icon,
+  };
+});
 ---
 
 <BaseLayout

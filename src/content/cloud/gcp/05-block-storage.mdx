@@ -1,11 +1,12 @@
 ---
 title: "Block Storage on GCP: Persistent Disks Deep Dive"
 description: "GCP Persistent Disk types with real performance numbers, Hyperdisk, Local SSD, disk attachment, snapshots, encryption, and filesystem operations."
-order: 4
+order: 5
 duration: 26
 tags: ["storage", "persistent-disk", "block-storage", "gce", "performance", "snapshots", "hyperdisk"]
-icon: "mdi:database"
+icon: "cloud-icons/gcp-persistent-disk"
 certifications: ["Google Associate Cloud Engineer", "Google Professional Cloud Architect"]
+sharedConcepts: ["block-storage-concepts"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -216,6 +217,32 @@ gcloud compute disks add-resource-policies prod-data-disk \
 
 <Callout type="info">
 Snapshots are stored in Cloud Storage and billed at Cloud Storage rates. Cross-region snapshot replication is supported: specify `--storage-location=us` for multi-region, or a specific region for data residency requirements.
+</Callout>
+
+---
+
+## Disk Pricing
+
+GCP Persistent Disk billing has three independent components: capacity, provisioned IOPS (for pd-extreme and Hyperdisk), and provisioned throughput (Hyperdisk only). Pricing below is approximate us-central1 rates:
+
+| Disk Type | $/GB-month | Provisioned IOPS | Provisioned Throughput |
+|---|---|---|---|
+| **pd-standard** | $0.040 | Not applicable | Not applicable |
+| **pd-balanced** | $0.100 | Not applicable | Not applicable |
+| **pd-ssd** | $0.170 | Not applicable | Not applicable |
+| **pd-extreme** | $0.125 | + $0.0035/IOPS/month | Not applicable |
+| **Hyperdisk Balanced** | $0.120 | + $0.0035/IOPS/month | + $0.048/MB/s/month |
+| **Hyperdisk Extreme** | $0.125 | + $0.0035/IOPS/month | Not applicable |
+| **Hyperdisk Throughput** | $0.054 | Not applicable | + $0.048/MB/s/month |
+| **Snapshot storage** | $0.026 | — | — |
+| **Local SSD** | Included in instance price for most N2/C2 types | — | — |
+
+<Callout type="warning" title="Provisioned IOPS Costs Compound">
+A `pd-extreme` disk provisioned with 80,000 IOPS costs: $0.125 × disk size (GB) + $0.0035 × 80,000 = **$280/month in IOPS alone**, before capacity. On Hyperdisk you pay for IOPS whether the workload uses them or not. Right-size provisioned IOPS using `fio` or workload profiling before committing — reducing 80k to 40k IOPS saves $140/month per disk.
+</Callout>
+
+<Callout type="tip" title="pd-balanced is the Default, Not pd-ssd">
+`pd-balanced` at $0.10/GB is the right baseline for production workloads — it delivers up to 80,000 IOPS at a 40% lower cost than `pd-ssd`. Only move to `pd-ssd` or `pd-extreme` when profiling shows you're actually hitting the `pd-balanced` IOPS ceiling.
 </Callout>
 
 ---

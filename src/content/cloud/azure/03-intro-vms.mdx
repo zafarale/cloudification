@@ -1,10 +1,10 @@
 ---
 title: "Azure Virtual Machines"
 description: "Azure VM sizes, SKU naming, pricing models, availability, storage, networking placement, and lifecycle"
-order: 2
+order: 3
 duration: 22
 tags: ["azure-vm", "compute", "virtual-machines", "pricing", "managed-disks"]
-icon: "mdi:server"
+icon: "cloud-icons/azure-virtual-machine"
 certifications: ["Azure Administrator AZ-104", "Azure Fundamentals AZ-900"]
 sharedConcepts: ["networking-basics"]
 ---
@@ -289,6 +289,28 @@ flowchart TD
   answer="Both compute and disk billing continue until you deallocate from the portal or CLI"
   explanation="An OS-level shutdown puts the VM in Stopped state, not Deallocated. In Stopped state, Azure has still reserved the underlying physical hardware for that VM — so compute charges continue. To release the hardware and stop compute billing, you must Deallocate the VM using the Azure portal Stop button, the Azure CLI (az vm deallocate), or Azure PowerShell. Managed disk charges always apply regardless of VM state."
 />
+
+---
+
+## Cost Implications
+
+Azure VM billing has a clear compute/disk split, with several surprising charges for stopped resources and premium capabilities.
+
+| Cost Source | Detail |
+|---|---|
+| **Stopped via OS shutdown** | VM enters `Stopped` state — underlying hardware still reserved. **Both compute AND disk are billed.** |
+| **Deallocated via portal/CLI** | Compute cost stops. **Managed disk billing continues** (provisioned at declared size, not actual usage). |
+| **Managed disk over-provisioning** | A 1 TB Premium SSD costs ~$120/month whether you store 10 GB or 1 TB — charged for provisioned capacity. |
+| **Standard Public IP (v2)** | $0.004/hr even while associated with a running VM (~$2.90/month per IP). |
+| **Outbound bandwidth** | 0–5 GB/month free, then ~$0.08/GB (tiered down with volume). Intra-region traffic within peered VNets is free. |
+
+<Callout type="warning" title="Premium SSD v2 Has Three Separate Billing Axes">
+Azure Premium SSD v2 charges separately for **capacity**, **IOPS provisioning**, and **throughput provisioning**. At low disk utilisation, the provisioned IOPS and throughput charges can exceed the storage capacity charge. Monitor actual disk IOPS via Azure Monitor before committing to high provisioned IOPS on Premium SSD v2.
+</Callout>
+
+<Callout type="tip" title="Azure Hybrid Benefit Can Cut Costs by 40%+">
+If your organisation has Windows Server or SQL Server licences with Software Assurance, **Azure Hybrid Benefit** lets you apply those licences to Azure VMs at no additional licensing charge. Combined with a 3-year reserved instance, a SQL Server Standard VM can cost 80% less than the PAYG rate with a SQL licence included. Always verify Hybrid Benefit applicability before sizing a VM fleet.
+</Callout>
 
 ---
 

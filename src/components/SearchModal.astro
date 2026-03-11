@@ -1,10 +1,12 @@
 ---
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 ---
 
 <!-- Trigger: full-width search bar -->
 <button
   id="search-btn"
   aria-label="Search"
+  data-base={base}
   class="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm border transition-colors cursor-text text-left">
   <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0">
     <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
@@ -23,7 +25,8 @@
     if (initialized) return;
     initialized = true;
     try {
-      const { PagefindUI } = await import('/pagefind/pagefind-ui.js');
+      const base = document.getElementById('search-btn')?.dataset.base ?? '';
+      const { PagefindUI } = await import(`${base}/pagefind/pagefind-ui.js`);
       new PagefindUI({
         element: '#pagefind-search',
         showSubResults: true,
@@ -43,6 +46,10 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('search-btn')?.addEventListener('click', openSearch);
+    // Close on backdrop click
+    document.getElementById('search-modal')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.close();
+    });
   });
 
   window.addEventListener('keydown', (e) => {

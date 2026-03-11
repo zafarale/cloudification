@@ -1,18 +1,19 @@
 ---
 title: "Amazon EC2"
 description: "EC2 instance types, pricing models, lifecycle, storage, networking, and how to choose the right configuration"
-order: 2
+order: 3
 duration: 22
 tags: ["ec2", "compute", "virtual-machines", "pricing", "ebs"]
-icon: "logos:aws-ec2"
+icon: "cloud-icons/amazon-ec2"
 sharedConcepts: ["networking-basics"]
 certifications: ["AWS Cloud Practitioner", "AWS Solutions Architect Associate"]
 ---
-
+import { Icon } from 'astro-icon/components';
 import Callout from '../../../components/mdx/Callout.astro';
 import KeyPoints from '../../../components/mdx/KeyPoints.astro';
 import Quiz from '../../../components/mdx/Quiz.astro';
 import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+import SectionHeader from '../../../components/mdx/SectionHeader.astro';
 
 Elastic Compute Cloud (EC2) is AWS's virtual machine service — one of the oldest and most fundamental pieces of the AWS platform. You launch a virtual server, choose the OS, CPU, memory, storage, and network configuration. Everything else in the compute stack (ECS, EKS, Beanstalk) ultimately runs on top of EC2.
 
@@ -52,16 +53,16 @@ m 7 g . 2 x l a r g e
 
 ---
 
-## Choosing the Right Instance Type
-
+<SectionHeader icon="cloud-icons/amazon-ec2-instance" iconSize={16} 
+    level={2}>Choosing the Right Instance Type</SectionHeader>
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: Choosing the Right Instance Type
     accDescr: Flowchart (td) showing What does your workload do, Web / API server or general app, CPU-intensive: batch, encoding, scientific
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
-    linkStyle default stroke-width:2.5px
+    linkStyle default stroke-width:5px
 
     START["What does your workload do?"]:::step
 
@@ -102,7 +103,7 @@ flowchart TD
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
-    linkStyle default stroke-width:2.5px
+    linkStyle default stroke-width:5px
 
     WORKLOAD["What is the workload pattern?"]:::step
 
@@ -144,15 +145,21 @@ Understanding the lifecycle determines what you're billed for and when.
 ```mermaid
 flowchart TD
     accTitle: EC2 Instance Lifecycle
-    accDescr: Flowchart (td) showing Pending Provisioning resources Not billed, Running Billed per second, Stopping Shutting down OS
-    PENDING["Pending<br/>Provisioning resources<br/>Not billed"]
-    RUNNING["Running<br/>fa:fa-check Billed per second"]
-    STOPPING["Stopping<br/>Shutting down OS"]
-    STOPPED["Stopped<br/>EBS volumes billed<br/>No CPU/memory charge"]
-    HIBERNATE["Hibernating<br/>RAM saved to EBS<br/>Faster resume"]
-    TERMINATE["Shutting Down<br/>Final state"]
-    TERMINATED["Terminated<br/>fa:fa-trash Not billed<br/>EBS deleted (default)"]
-    REBOOT["Reboot<br/>Stays running, same host<br/>No billing gap"]
+    accDescr: Flowchart showing the EC2 instance state machine and what each state means for billing.
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef warn fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    PENDING["fa:fa-spinner Pending<br/>Provisioning resources<br/>Not billed"]:::warn
+    RUNNING["fa:fa-circle-check Running<br/>Billed per second"]:::ok
+    STOPPING["fa:fa-hourglass Stopping<br/>Shutting down OS"]:::warn
+    STOPPED["fa:fa-pause Stopped<br/>EBS volumes billed<br/>No CPU/memory charge"]:::warn
+    HIBERNATE["fa:fa-moon Hibernating<br/>RAM saved to EBS<br/>Faster resume"]:::step
+    TERMINATE["fa:fa-power-off Shutting Down<br/>Final state"]:::fail
+    TERMINATED["fa:fa-trash Terminated<br/>Not billed<br/>EBS deleted (default)"]:::fail
+    REBOOT["fa:fa-rotate-right Reboot<br/>Same host, same IP<br/>No billing gap"]:::ok
 
     PENDING --> RUNNING
     RUNNING --> STOPPING
@@ -296,6 +303,27 @@ flowchart TD
 
 ---
 
+## Cost Implications
+
+EC2 pricing has well-known components (on-demand rate, reserved discount) and several lesser-known ones that quietly inflate bills.
+
+| Cost Source | Detail |
+|---|---|
+| **On-Demand rates (sample)** | t3.medium $0.0416/hr, m5.xlarge $0.192/hr, c5.4xlarge $0.68/hr, r5.4xlarge $1.008/hr |
+| **Stopped (not terminated) instances** | Compute cost stops, but **EBS volumes continue billing**. A 500 GB gp3 root disk costs $40/month even while the instance is stopped. |
+| **Unattached Elastic IPs** | $0.005/hr (~$3.60/month) per unused Elastic IP. AWS charges for EIPs allocated but not associated with a running instance. Release unused EIPs immediately. |
+| **Data transfer** | EC2 → internet: $0.09/GB. Between AZs in same region: $0.01/GB each way. Same AZ using private IP: free. |
+
+<Callout type="warning" title="Over-Provisioning is the Most Common EC2 Cost Mistake">
+It's easy to launch an `m5.4xlarge` because "it might get busy" and leave it running at 5% CPU. **AWS Compute Optimizer** analyses CloudWatch CPU/memory metrics and recommends right-sizing. An `m5.4xlarge` running at 5% average CPU should be an `m5.large` — 8× cheaper. Start one size smaller than you think you need and scale up with real data.
+</Callout>
+
+<Callout type="tip" title="Reserved Instances vs Savings Plans">
+**EC2 Reserved Instances** commit to a specific instance type and region — more restrictive but up to 72% off. **Compute Savings Plans** commit to a $/hr spend level and apply across any EC2 family, size, or region — more flexible at ~66% off. For stable long-running fleets, Reserved Instances offer the deepest discount. For new workloads with unknown instance shapes, Savings Plans are safer.
+</Callout>
+
+---
+
 <KeyPoints title="EC2 Checklist">
 - Decode any instance type name: Family + Generation + Attribute + Size
 - Default to Graviton (g suffix) for new x86-compatible workloads
@@ -306,3 +334,5 @@ flowchart TD
 - Use IAM Roles on instances — never hard-code credentials
 - Use Session Manager instead of SSH — no open port 22 required
 </KeyPoints>
+
+

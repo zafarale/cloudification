@@ -1,10 +1,10 @@
 ---
 title: "Securing Your System on AWS"
 description: "IAM policies, Security Groups, VPC segmentation, KMS, and CloudTrail — applying security foundations in AWS"
-order: 3
+order: 4
 duration: 22
 tags: ["security", "iam", "vpc", "kms", "cloudtrail", "sg"]
-icon: "logos:aws-iam"
+icon: "cloud-icons/aws-identity-and-access-management"
 certifications: ["AWS Solutions Architect Associate", "AWS Security Specialty", "AWS Cloud Practitioner"]
 sharedConcepts: ["security-foundations"]
 ---
@@ -25,6 +25,77 @@ This lesson maps AWS-specific controls to the security principles in [Security F
 - CloudTrail + CloudWatch as the AWS traceability layer
 </KeyPoints>
 
+<Callout type="tip" title="Linux foundation">
+AWS IAM is the cloud API for the same user/group/permission model that Linux has used for decades. If principals, group membership, or least privilege are new concepts, the [Linux Users, Permissions, and Processes](/linux/03-users-permissions-and-processes) lesson builds that mental model from scratch — it's worth 15 minutes before continuing here.
+</Callout>
+
+---
+
+## Users and Groups: AWS Identity and Access Management (IAM)
+
+In AWS, **every identity that can be granted permissions is an IAM principal**. The types are distinct and serve different purposes — understanding which one to use in each situation is the foundation of secure AWS access management.
+
+### Principal Types
+
+| Principal type | Identifier | Typical use |
+|---|---|---|
+| **Root user** | Account email | Break-glass only — never used for daily tasks |
+| **IAM User** | `arn:aws:iam::123456789012:user/alice` | Human operator with long-term credentials (prefer SSO instead) |
+| **IAM Group** | `arn:aws:iam::123456789012:group/developers` | Collection of IAM users — attach policies to the group, not to individuals |
+| **IAM Role** | `arn:aws:iam::123456789012:role/app-role` | Assumed identity for services, cross-account access, or federated users |
+| **Federated identity** | SAML 2.0 / OIDC provider | SSO users from Okta, Azure AD, Google Workspace, etc. |
+
+### How Users and Groups Are Organised
+
+AWS IAM users and groups live entirely within the AWS account. For human access, AWS best practice is to **avoid IAM users entirely** and instead federate through AWS IAM Identity Center (formerly SSO), which maps your existing IdP's groups to Permission Sets.
+
+```mermaid
+flowchart RL
+    accTitle: AWS IAM Identity Organisation
+    accDescr: Diagram showing the two paths — direct IAM users/groups for programmatic access, and IAM Identity Center federating an external IdP for human access, both converging on AWS resource access via roles and policies.
+    classDef step fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef leaf fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef glob fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    IDP["fa:fa-id-card External IdP<br/>(Okta / Azure AD / Google Workspace)"]:::step
+    IC["fa:fa-key IAM Identity Center<br/>(SSO — recommended for humans)"]:::ok
+
+    subgraph DIRECT["Direct IAM (programmatic / legacy)"]
+        U1["fa:fa-user IAM User: alice"]:::leaf
+        U2["fa:fa-user IAM User: bob"]:::leaf
+        G1["fa:fa-users IAM Group: Developers<br/>(alice, bob)"]:::leaf
+        G2["fa:fa-users IAM Group: ReadOnly"]:::leaf
+        POL1["fa:fa-file-lines Policy: PowerUserAccess"]:::leaf
+        POL2["fa:fa-file-lines Policy: ReadOnlyAccess"]:::leaf
+    end
+
+    ROOT["fa:fa-triangle-exclamation Root User<br/>(break-glass only — MFA + lock away)"]:::glob
+
+    ROLE["fa:fa-masks-theater IAM Role<br/>(assumed at runtime)"]:::ok
+    RES["fa:fa-cloud AWS Resources"]:::ok
+
+    IDP -->|"SAML 2.0 / OIDC"| IC
+    IC -->|"maps to Permission Sets"| ROLE
+    U1 & U2 --> G1
+    G1 -->|"attach"| POL1
+    G2 -->|"attach"| POL2
+    POL1 & POL2 --> RES
+    ROLE --> RES
+```
+
+**Key design principles:**
+
+- **Attach policies to groups, never to individual IAM users.** This keeps permission management centralised — changing what a team can do means updating one group policy, not hunting down individual user attachments.
+- **Use IAM Identity Center for human access.** It federates your existing IdP (Okta, Azure AD, Google Workspace) and maps directory groups to AWS Permission Sets. No IAM users needed for humans at all.
+- **Use IAM Roles, not users, for every workload.** EC2 instances, Lambda functions, ECS tasks — all of these assume a Role at runtime via the instance metadata service. No credentials to rotate or leak.
+- **Lock away the root user.** Enable MFA on the root account, don't create access keys for it, and only use it for tasks that absolutely require root (e.g. changing account settings, closing the account).
+
+<Callout type="warning">
+**IAM Users with long-term access keys are a liability.** Keys don't expire automatically, get checked into git repos, and need manual rotation. AWS recommends zero IAM users for human access — use IAM Identity Center with your existing IdP instead. For machine-to-machine access, use IAM Roles.
+</Callout>
+
 ---
 
 ## IAM: Implementing Least Privilege in AWS
@@ -34,12 +105,12 @@ The security-foundations lesson defines **least privilege** as the principle. IA
 ### IAM Policy Anatomy
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: IAM Policy Anatomy
     accDescr: Flowchart (td) showing JSON document, Effect: Allow Deny, roles/users/services
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
-    linkStyle default stroke-width:2.5px
+    linkStyle default stroke-width:5px
 
     POLICY["IAM Policy (JSON document)"]:::step
     STATEMENT["Statement block(s)"]:::step
@@ -87,7 +158,7 @@ flowchart TD
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
     classDef decesion fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
-    linkStyle default stroke-width:2.5px
+    linkStyle default stroke-width:5px
 
     REQ["Access request arrives"]:::step
     DENY_EX{"Explicit Deny<br/>in any policy?"}:::decesion
@@ -199,7 +270,7 @@ flowchart TD
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
     classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
     classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
-    linkStyle default stroke-width:2.5px
+    linkStyle default stroke-width:5px
 
     IGW["Internet Gateway"]:::step
     NAT["NAT Gateway<br/>(public subnet, AZ-a)"]:::step
@@ -314,7 +385,7 @@ flowchart TD
 ## AWS Security Checklist
 
 ```mermaid
-flowchart TD
+flowchart LR
     accTitle: AWS Security Checklist
     accDescr: Flowchart (td) showing Account Level, IAM Layer, Network Layer
     classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
@@ -358,6 +429,33 @@ flowchart TD
   answer="Attach an IAM execution role to the Lambda with a policy that allows dynamodb:GetItem and dynamodb:Query on the specific table ARN"
   explanation="Lambda functions should use an IAM execution role — not access keys. The AWS SDK running inside Lambda automatically retrieves temporary credentials from the execution role via the metadata service. The policy should be scoped to the minimum required actions (GetItem, Query — not FullAccess) on the specific table ARN, not all DynamoDB resources."
 />
+
+---
+
+## Cost Implications
+
+AWS security services range from completely free (Security Groups, IAM) to per-resource monthly costs that compound at scale.
+
+| Service | Cost Model | Approximate Cost |
+|---|---|---|
+| **IAM, SCPs, Permission Boundaries** | Free | Free |
+| **Security Groups & NACLs** | Free | Free |
+| **VPC, Subnets, Routing Tables** | Free | Free |
+| **KMS Customer Managed Key** | Per key version + operations | $1.00/key/month + $0.03/10k cryptographic operations |
+| **Secrets Manager** | Per secret + API calls | $0.40/secret/month + $0.05/10k API calls |
+| **CloudTrail (first trail per region)** | Free | Free |
+| **CloudTrail additional trails** | Per event | $2.00/100k management events |
+| **CloudTrail S3 log storage** | Standard S3 pricing | ~$0.023/GB/month |
+| **GuardDuty** | Per event volume | $4.00/million CloudTrail events; $0.80/million S3 data events |
+| **Security Hub** | Per check + findings | $0.0010/finding/month; $0.0015/security check |
+
+<Callout type="warning" title="GuardDuty Costs Scale With CloudTrail Event Volume">
+GuardDuty charges based on events analysed. In a busy multi-account organisation with S3 Data Events enabled in CloudTrail, you can generate many millions of events per month. Before enabling S3 data events broadly, estimate the volume using CloudTrail Insights first, then scope GuardDuty protection to accounts and regions that actually need coverage.
+</Callout>
+
+<Callout type="tip" title="Secrets Manager vs SSM Parameter Store">
+**Secrets Manager** ($0.40/secret/month) includes automatic rotation via Lambda integration. **SSM Parameter Store Standard** is completely free for standard parameters. Use Secrets Manager for credentials that need auto-rotation (database passwords, API keys). Use Parameter Store for static config values and non-rotating parameters — the cost difference is significant at scale.
+</Callout>
 
 ---
 

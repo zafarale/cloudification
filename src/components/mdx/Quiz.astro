@@ -6,11 +6,19 @@ interface Option {
 
 interface Props {
   question: string;
-  options: Option[];
+  options: (Option | string)[];
+  answer?: string;
   explanation?: string;
 }
 
-const { question, options, explanation } = Astro.props;
+const { question, options, answer, explanation } = Astro.props;
+
+const normalizedOptions: Option[] = options.map((opt) => {
+  if (typeof opt === 'string') {
+    return { label: opt, correct: answer ? opt === answer : false };
+  }
+  return opt;
+});
 const quizId = Math.random().toString(36).slice(2, 8);
 ---
 
@@ -21,7 +29,7 @@ const quizId = Math.random().toString(36).slice(2, 8);
   <p class="text-sm font-semibold text-gray-200 mb-4">{question}</p>
 
   <div class="space-y-2" id={`options-${quizId}`}>
-    {options.map((option, index) => (
+    {normalizedOptions.map((option, index) => (
       <button
         class="w-full text-left px-4 py-3 rounded-lg border border-white/10 bg-white/5 text-sm text-gray-400 hover:border-white/20 hover:text-gray-200 hover:bg-white/10 transition-all duration-200 font-sans"
         data-correct={option.correct ? 'true' : 'false'}

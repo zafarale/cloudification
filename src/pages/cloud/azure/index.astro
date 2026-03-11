@@ -3,21 +3,24 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import PageHeader from '../../../components/PageHeader.astro';
 import LessonList from '../../../components/LessonList.astro';
 import { getCollection } from 'astro:content';
-import { toTrackSlug } from '../../../lib/content-slugs';
+import { toTrackSlug, lessonListIconMap } from '../../../lib/content-slugs';
 
 const lessons = await getCollection('cloud', ({ id }) => id.startsWith('azure/'));
 const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
 const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
 
-const lessonItems = sorted.map(lesson => ({
-  title: lesson.data.title,
-  description: lesson.data.description,
-  href: `/cloud/azure/${toTrackSlug(lesson.id, 'azure')}`,
-  order: lesson.data.order,
-  duration: lesson.data.duration,
-  tags: lesson.data.tags,
-  icon: lesson.data.icon,
-}));
+const lessonItems = sorted.map(lesson => {
+  const slug = toTrackSlug(lesson.id, 'azure');
+  return {
+    title: lesson.data.title,
+    description: lesson.data.description,
+    href: `/cloud/azure/${slug}`,
+    order: lesson.data.order,
+    duration: lesson.data.duration,
+    tags: lesson.data.tags,
+    icon: lessonListIconMap[slug] ?? lesson.data.icon,
+  };
+});
 ---
 
 <BaseLayout
@@ -36,6 +39,4 @@ const lessonItems = sorted.map(lesson => ({
     totalDuration={totalDuration}
   />
   <LessonList lessons={lessonItems} color="blue" />
-</BaseLayout>
-
 </BaseLayout>

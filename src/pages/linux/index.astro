@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import PageHeader from '../../components/PageHeader.astro';
+import LessonList from '../../components/LessonList.astro';
+import { getCollection } from 'astro:content';
+
+const lessons = await getCollection('linux');
+const sorted = lessons.sort((a, b) => a.data.order - b.data.order);
+const totalDuration = sorted.reduce((acc, l) => acc + (l.data.duration ?? 0), 0);
+
+const lessonItems = sorted.map(lesson => ({
+  title: lesson.data.title,
+  description: lesson.data.description,
+  href: `/linux/${lesson.id.replace(/\.mdx?$/, '')}`,
+  order: lesson.data.order,
+  duration: lesson.data.duration,
+  tags: lesson.data.tags,
+  icon: lesson.data.icon,
+}));
+---
+
+<BaseLayout
+  title="Linux"
+  description="Master Linux from first principles. Filesystem hierarchy, users and permissions, shell scripting, networking, and service management for developers and sysadmins."
+  keywords={['Linux fundamentals', 'bash scripting', 'Linux permissions', 'systemd', 'shell scripting', 'Linux networking', 'LFCS', 'CompTIA Linux+']}
+  certifications={['Linux Foundation LFCS', 'CompTIA Linux+', 'RHCSA']}
+>
+  <PageHeader
+    title="Linux"
+    description="From kernel fundamentals to production system administration. Work through lessons in order — each builds on the last."
+    icon="🐧"
+    backHref="/"
+    backLabel="Back to Tracks"
+    lessonCount={sorted.length}
+    totalDuration={totalDuration}
+  />
+  <LessonList lessons={lessonItems} color="yellow" />
+</BaseLayout>

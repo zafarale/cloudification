@@ -1,10 +1,10 @@
 ---
 title: "Securing Your System on Azure"
 description: "Entra ID RBAC, NSG priority rules, VNet segmentation, Key Vault, and Azure Monitor — applying security foundations in Azure"
-order: 3
+order: 4
 duration: 22
 tags: ["security", "entra-id", "rbac", "nsg", "vnet", "key-vault", "defender"]
-icon: "logos:microsoft-azure"
+icon: "cloud-icons/azure-identity-governance"
 certifications: ["Azure Fundamentals AZ-900", "Azure Administrator AZ-104", "Azure Security Engineer AZ-500"]
 sharedConcepts: ["security-foundations"]
 ---
@@ -24,6 +24,76 @@ This lesson maps Azure-specific controls to the security principles in [Security
 - Azure Key Vault for secrets, keys, and certificates
 - Azure Monitor + Defender for Cloud as the Azure traceability and threat detection layer
 </KeyPoints>
+
+<Callout type="tip" title="Linux foundation">
+Entra ID users, security groups, and RBAC role assignments directly mirror the Linux user/group/permission model. If these concepts are new to you, the [Linux Users, Permissions, and Processes](/linux/03-users-permissions-and-processes) lesson builds the mental model from first principles — it makes the Azure concepts click much faster.
+</Callout>
+
+---
+
+## Users and Groups: Azure Identity and Access Management (IAM)
+
+In Azure, identities are managed by **Microsoft Entra ID** (formerly Azure Active Directory) — a cloud-based identity provider that is separate from Azure resource management. RBAC assignments in Azure always reference an Entra ID principal.
+
+### Principal Types
+
+| Principal type | Identifier | Typical use |
+|---|---|---|
+| **User** | `alice@example.com` | Human operator — lives in Entra ID directory |
+| **Group** | `sg-prod-admins` | Collection of users and/or service principals — assign RBAC to the group |
+| **Service Principal** | App registration object ID | Application identity — programmatic access from external apps or pipelines |
+| **Managed Identity** | System-assigned or user-assigned | Workload identity for Azure resources — no credentials to manage (preferred) |
+| **Guest user** | `alice_external.com#EXT#@tenant.onmicrosoft.com` | B2B collaborator from another org or personal Microsoft account |
+
+### How Users and Groups Are Organised
+
+Entra ID is the single source of truth for identities. Users sit in the Entra ID tenant and are organised into **Security Groups** (for access control) or **Microsoft 365 Groups** (for collaboration). RBAC assignments are then made against those groups at any level of the Azure management hierarchy.
+
+```mermaid
+flowchart LR
+    accTitle: Azure Entra ID Identity Organisation
+    accDescr: Diagram showing Entra ID as the identity provider, users organised into groups, and RBAC assignments flowing down the Management Group, Subscription, Resource Group, and Resource scope hierarchy.
+    classDef step fill:none,stroke:#3b82f6,color:#3b82f6,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef leaf fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef glob fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    ENTRA["fa:fa-id-card Microsoft Entra ID<br/>(Identity Provider)"]:::step
+
+    subgraph IDENTITIES["Identities in Entra ID"]
+        U1["fa:fa-user alice@example.com"]:::leaf
+        U2["fa:fa-user bob@example.com"]:::leaf
+        G1["fa:fa-users Security Group:<br/>sg-prod-developers"]:::ok
+        G2["fa:fa-users Security Group:<br/>sg-billing-readers"]:::ok
+        MI["fa:fa-robot Managed Identity:<br/>prod-webapp-mi"]:::glob
+    end
+
+    subgraph SCOPE["Azure Resource Hierarchy"]
+        MG["fa:fa-building Management Group"]:::step
+        SUB["fa:fa-credit-card Subscription"]:::step
+        RG["fa:fa-folder Resource Group"]:::step
+        RES["fa:fa-server Resource"]:::leaf
+    end
+
+    ENTRA --> U1 & U2 & MI
+    U1 & U2 --> G1
+    G1 -->|"Contributor on RG"| RG
+    G2 -->|"Reader on Subscription"| SUB
+    MI -->|"Key Vault Secrets User on resource"| RES
+    MG --> SUB --> RG --> RES
+```
+
+**Key design principles:**
+
+- **Assign RBAC to Security Groups, not individual users.** Entra ID Security Groups are the unit of access management — add or remove people from the group rather than adding or removing role assignments.
+- **Use Managed Identities for every Azure workload.** App Services, VMs, AKS pods, Logic Apps — all support Managed Identity. The platform handles credential rotation; you never see or store a secret.
+- **Assign at the narrowest scope.** Contributor at a Resource Group is safer than Contributor at a Subscription. Use Management Groups only for policies and roles that genuinely need to apply to every subscription (e.g. org-wide Reader for auditors).
+- **Separate duty groups.** Create distinct groups for `deploy` (Contributor), `read` (Reader), and `secrets` (Key Vault Secrets User) rather than giving Contributor access to everyone who needs to read logs.
+
+<Callout type="tip">
+**Entra ID Privileged Identity Management (PIM)** lets you make role assignments **just-in-time** — a user requests elevation, a manager approves, and the role activates for a fixed window (e.g. 1 hour). All elevation events are logged. Use PIM for any `Owner` or `Contributor` assignment at the Subscription level.
+</Callout>
 
 ---
 
@@ -367,6 +437,32 @@ az keyvault update --name prod-kv \
   --enable-soft-delete true \
   --enable-purge-protection true
 ```
+
+---
+
+## Cost Implications
+
+Security services sit at the widest range of Azure pricing — some are completely free, while others carry significant per-resource monthly costs that compound with scale.
+
+| Service | Cost Model | Approximate Cost |
+|---|---|---|
+| **RBAC / Entra ID (built-in roles)** | Free | Free |
+| **Managed Identities** | Free | Free |
+| **NSGs and ASGs** | Free | Free |
+| **Azure Key Vault (Standard)** | Per-operation | $0.03 per 10k secret operations |
+| **Key Vault HSM-backed keys** | Per key + operations | $1.00/key/month + $0.015/10k ops |
+| **Microsoft Defender for Cloud (free tier)** | Free | CSPM recommendations only |
+| **Defender for Servers Plan P2** | Per server-hour | ~$15/server/month |
+| **Log Analytics ingestion** | Per GB ingested | ~$2.76/GB (first 5 GB/day free) |
+| **Log Analytics retention** | Per GB/month after 31 days | $0.10/GB/month |
+
+<Callout type="warning" title="Defender for Cloud Adds Up Quickly">
+Defender for Servers Plan P2 at ~$15/server/month costs $1,500/month on 100 VMs. Enable it selectively on internet-facing or data-tier VMs first, not uniformly across every dev/test instance. Use the free tier CSPM to identify misconfigurations — most findings are actionable without enabling paid Defender plans.
+</Callout>
+
+<Callout type="tip" title="Log Analytics Ingestion is the Silent Cost">
+Activity logs and diagnostic settings routed to Log Analytics can ingest gigabytes per day across a busy subscription. Set a **daily ingestion cap** on the workspace during initial setup and review actual ingestion after 7 days before removing it for production. Data Access audit logs are especially verbose.
+</Callout>
 
 ---
 

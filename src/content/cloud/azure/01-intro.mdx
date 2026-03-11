@@ -4,9 +4,9 @@ description: "Azure global infrastructure, management hierarchy, core services, 
 order: 1
 duration: 18
 tags: ["intro", "azure", "cloud", "global-infrastructure", "entra"]
-icon: "logos:microsoft-azure"
+icon: "cloud-icons/azure-a"
 certifications: ["Azure Fundamentals AZ-900", "Azure Administrator AZ-104"]
-sharedConcepts: ["iam-concepts", "networking-basics"]
+sharedConcepts: ["iam-concepts", "regions-and-availability-zones", "networking-basics"]
 ---
 
 import Callout from '../../../components/mdx/Callout.astro';
@@ -342,6 +342,27 @@ az role assignment list --assignee $(az account show --query user.name -o tsv)
   answer="All subscriptions, resource groups, and resources that are descendants of that Management Group"
   explanation="Azure RBAC role assignments inherit downward through the hierarchy. A Contributor role at the Management Group level propagates to all child Management Groups, subscriptions, resource groups, and resources under it. This is why Management Group-level role assignments must be reserved for trusted principals — the blast radius is the entire subtree."
 />
+
+---
+
+## Cost Implications
+
+Azure billing mirrors the management hierarchy — costs accumulate at the resource level, but are visible and controllable at every level above.
+
+| Billing Concept | Detail |
+|---|---|
+| **Free services** | Entra ID Free, VNets, NSGs, Resource Groups, Management Groups, Azure Policy — all free |
+| **Free tier (new accounts)** | $200 credit for 30 days + 12-month limited free services (750 hrs B1S VM, 5 GB Blob Storage, 250 GB SQL Database) |
+| **Regional pricing variation** | East US is typically cheapest; UK South and Australia East can be 15–25% more expensive for the same VM sizes |
+| **Cross-region data transfer** | Intra-region (same AZ): free for most services. Cross-region: $0.02–0.08/GB depending on source/destination. |
+
+<Callout type="warning" title="Azure Has No Default Spending Limit After Free Credit">
+Budgets and alerts in **Azure Cost Management + Billing** must be configured manually. A new subscription has no spending limit after the free credit expires. Set a budget alert at 80% and 100% of your expected monthly spend on **every subscription** — a management group budget alert does not cascade to individual subscriptions automatically.
+</Callout>
+
+<Callout type="tip" title="Use the Azure Pricing Calculator Before Provisioning">
+Azure's pricing calculator (pricing.azure.com) lets you build a full architecture estimate before deploying. Export the estimate as a CSV and compare reserved vs PAYG pricing for your steady-state resources. For any service running 720 hrs/month, a 1-year reservation typically pays back in under 7 months.
+</Callout>
 
 ---
 

@@ -149,13 +149,10 @@ const fullTitle = `${title} — Acert`;
     </div>
 
     <!-- Search modal: direct child of body avoids backdrop-filter containment in nav -->
-    <dialog id="search-modal" class="modal">
-      <div class="modal-box max-w-2xl p-0 overflow-hidden" style="background: var(--bg-card); border: 1px solid var(--border);">
+    <dialog id="search-modal" class="search-dialog">
+      <div class="search-dialog-box">
         <div id="pagefind-search" class="p-4"></div>
       </div>
-      <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-      </form>
     </dialog>
 
   </body>

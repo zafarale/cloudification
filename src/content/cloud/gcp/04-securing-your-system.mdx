@@ -1,10 +1,10 @@
 ---
 title: "Securing Your System on GCP"
 description: "Cloud IAM roles and bindings, Service Accounts, VPC firewall rules, Cloud KMS, and Cloud Audit Logs — applying security foundations in GCP"
-order: 3
+order: 4
 duration: 22
 tags: ["security", "iam", "service-accounts", "vpc", "kms", "audit-logs", "scc"]
-icon: "mdi:shield-check"
+icon: "cloud-icons/gcp-identity-and-access-management"
 certifications: ["Google Associate Cloud Engineer", "Google Professional Cloud Architect", "Google Professional Cloud Security Engineer"]
 sharedConcepts: ["security-foundations"]
 ---
@@ -25,6 +25,74 @@ This lesson maps GCP-specific controls to the security principles in [Security F
 - Cloud KMS and envelope encryption for data at rest
 - Cloud Audit Logs + Security Command Center as the GCP traceability and threat detection layer
 </KeyPoints>
+
+<Callout type="tip" title="Linux foundation">
+GCP IAM members, groups, and service accounts are the cloud expression of the same user/group model Linux has used since the 1970s. If principals, group membership, and least privilege are new concepts, start with [Linux Users, Permissions, and Processes](/linux/03-users-permissions-and-processes) — it builds the mental model that makes GCP IAM intuitive.
+</Callout>
+
+---
+
+## Users and Groups: GCP Identity and Access Management (IAM)
+
+In GCP, **every identity that can be granted permissions is called a principal**. Principals come in several types, and you almost always assign permissions to groups rather than directly to individual users.
+
+### Principal Types
+
+| Principal type | Identifier format | Typical use |
+|---|---|---|
+| **Google Account** | `user:alice@example.com` | Human operator or developer |
+| **Google Group** | `group:devs@example.com` | Collection of users — grant once, manage membership separately |
+| **Service Account** | `serviceAccount:app@project.iam.gserviceaccount.com` | Workload / application identity (detailed in the next section) |
+| **Cloud Identity / Workspace domain** | `domain:example.com` | All users in an org's Google Workspace or Cloud Identity directory |
+| **allAuthenticatedUsers** | — | Any Google-authenticated identity (rarely used in production) |
+| **allUsers** | — | The entire internet including unauthenticated (only valid for public resources) |
+
+### How Users and Groups Are Organised
+
+GCP does not manage users directly — identities come from **Google Workspace** or **Cloud Identity** (the free alternative for non-Workspace orgs). Cloud Identity acts as the IdP; GCP IAM consumes those identities.
+
+```mermaid
+flowchart TD
+    accTitle: GCP Identity Organisation
+    accDescr: Diagram showing how Cloud Identity or Workspace provides users and groups, which are then used in GCP IAM bindings at Organisation, Folder, and Project scope.
+    classDef step fill:none,stroke:#a855f7,color:#a855f7,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef leaf fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef glob fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    IDP["fa:fa-id-card Google Workspace /<br/>Cloud Identity (IdP)"]:::step
+
+    subgraph USERS["Identities"]
+        U1["fa:fa-user alice@example.com"]:::leaf
+        U2["fa:fa-user bob@example.com"]:::leaf
+        G1["fa:fa-users group: engineers@example.com<br/>(alice, bob, ...)"]:::ok
+        G2["fa:fa-users group: billing-admins@example.com"]:::ok
+        G3["fa:fa-users group: read-only@example.com"]:::ok
+    end
+
+    subgraph SCOPE["GCP Resource Hierarchy"]
+        ORG["fa:fa-building Organisation"]:::glob
+        FOLD["fa:fa-folder Folder (e.g. Production)"]:::glob
+        PROJ["fa:fa-diagram-project Project: prod-web-001"]:::glob
+    end
+
+    IDP --> U1 & U2
+    U1 & U2 --> G1
+    G1 -->|"roles/compute.instanceAdmin"| FOLD
+    G2 -->|"roles/billing.admin"| ORG
+    G3 -->|"roles/storage.objectViewer"| PROJ
+```
+
+**Key design principles:**
+
+- **Grant roles to groups, not users.** When someone joins or leaves a team, you update group membership — not dozens of individual IAM bindings scattered across projects.
+- **Mirror your org chart in groups.** Create function-aligned groups (`engineers`, `security-ops`, `billing-admins`) rather than project-aligned ones. Team membership outlasts individual projects.
+- **Use the resource hierarchy for scope.** A role granted at the Organisation level flows down to every Folder, Project, and resource. A role granted at a Project only affects that Project. Assign at the narrowest scope that satisfies the requirement.
+
+<Callout type="tip">
+**Google Groups in Google Workspace are the right unit of IAM management** — not Cloud Identity groups (which are separate). If your company uses Google Workspace, create IAM-purpose groups like `gcp-prod-admins@example.com` in Workspace Admin and grant roles to those groups in GCP. Membership changes propagate automatically.
+</Callout>
 
 ---
 
@@ -304,6 +372,34 @@ Security Command Center (SCC) is GCP's centralised security posture management s
 | **Compliance** | PCI DSS or CIS control failure |
 
 Enable **Security Health Analytics** and **Web Security Scanner** in SCC to get automatic misconfiguration detection across your organization.
+
+---
+
+## Cost Implications
+
+GCP security services split cleanly between free identity/network controls and metered cryptographic and monitoring services.
+
+| Service | Cost Model | Approximate Cost |
+|---|---|---|
+| **Cloud IAM** | Free | Free |
+| **Service Accounts** | Free | Free |
+| **VPC Firewall Rules** | Free | Free |
+| **Cloud KMS — key versions** | Per active key version/month | $0.06/key version/month |
+| **Cloud KMS — cryptographic operations** | Per 10k operations | $0.03/10k operations |
+| **Secret Manager — secret versions** | Per active version/month | $0.06/version/month |
+| **Secret Manager — API access** | Per 10k operations | $0.03/10k operations |
+| **Cloud Audit Logs — Admin Activity** | Free | Free (always on) |
+| **Cloud Audit Logs — Data Access** | Per GB ingested into Cloud Logging | $0.01/GB (first 50 GB/project/month free) |
+| **Security Command Center Standard** | Free | Free |
+| **Security Command Center Premium** | Per resource | ~$0.06/protected resource/month |
+
+<Callout type="warning" title="Data Access Audit Logs Generate Volume">
+Enabling **Data Access audit logs** (DATA_READ, DATA_WRITE) for services like Cloud Storage, BigQuery, or Cloud SQL can generate hundreds of GB of logs per month in active environments. Route them selectively: enable for sensitive services (prod buckets, production databases) and leave off for dev/test. Always set a log retention policy and export to Cloud Storage for long-term archival at object-storage pricing rather than Logging retention pricing.
+</Callout>
+
+<Callout type="tip" title="Cloud KMS Cost vs Risk Reduction">
+At $0.06/key/month, a well-structured CMEK deployment for 20 key versions costs $1.44/month — negligible compared to the compliance and audit value. The real cost is operational: key rotation policies, key ring organisation, and IAM for key access all require ongoing maintenance. Automate key rotation schedules at creation time.
+</Callout>
 
 <Quiz
   question="A GCE instance needs to read secrets from Secret Manager. What is the most secure approach?"

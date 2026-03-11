@@ -1,0 +1,361 @@
+---
+title: "Object Storage on Azure: Blob Storage Deep Dive"
+description: "Master Azure Blob Storage — access tiers with real pricing, lifecycle management, SAS tokens, access control with RBAC and ACLs, and Azure CLI operations for production use."
+order: 6
+duration: 30
+tags: ["storage", "blob-storage", "object-storage", "lifecycle", "sas", "rbac", "azure-cli"]
+icon: "cloud-icons/azure-storage-accounts"
+certifications: ["Azure Administrator AZ-104", "Azure Solutions Architect AZ-305", "Azure Developer AZ-204"]
+sharedConcepts: ["object-storage-concepts"]
+---
+
+import Callout from '../../../components/mdx/Callout.astro';
+import KeyPoints from '../../../components/mdx/KeyPoints.astro';
+import Quiz from '../../../components/mdx/Quiz.astro';
+import CodeTabs from '../../../components/mdx/CodeTabs.astro';
+
+**Azure Blob Storage** is Azure's massively scalable object store for unstructured data. Text files, images, videos, backups, data lake files, and application packages all live as blobs. Blob Storage sits inside a **Storage Account** — a namespace container that also hosts Azure Files, Queues, and Tables — which means its access control and networking configuration is shared at the account level, not the container level.
+
+<KeyPoints>
+- Understand the Storage Account → Container → Blob three-level hierarchy and why it matters for access control
+- Select the right access tier (Hot, Cool, Cold, Archive) using the access-frequency cost model
+- Create storage accounts and containers, and upload blobs with the Azure CLI
+- Automate tier transitions and deletion using Lifecycle Management policies
+- Generate SAS tokens to grant time-limited, scoped access without sharing account keys
+- Apply RBAC roles to storage accounts and containers for identity-based access control
+</KeyPoints>
+
+<Callout type="info" title="Foundation Concepts">
+This lesson covers Azure-specific operations and pricing. Object storage fundamentals — bucket/container model, how 11-nines durability works, storage tier trade-offs, and when object storage is the wrong choice — are covered in [Object Storage Concepts](/cloud/common/object-storage-concepts).
+</Callout>
+
+---
+
+## Azure Storage Hierarchy
+
+Azure adds an extra level below the storage account that has no direct AWS equivalent:
+
+```mermaid
+flowchart TD
+    accTitle: Azure Blob Storage hierarchy
+    accDescr: The three-level hierarchy of Azure Blob Storage — Storage Account at the top, Containers inside it, and Blobs inside each Container — with key properties of each level.
+    classDef step fill:none,stroke:#3b82f6,color:#3b82f6,rx:8,ry:8
+    classDef mid  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef leaf fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    SA["fa:fa-building Storage Account<br/>Globally unique name<br/>Region-bound<br/>Networking &amp; auth configured here"]:::step
+    C1["fa:fa-folder Container A<br/>Access level: private / blob / container<br/>Lifecycle rules scoped here"]:::mid
+    C2["fa:fa-folder Container B"]:::mid
+    B1["fa:fa-file Block Blob<br/>Optimised for sequential upload<br/>Up to 190.7 TB"]:::leaf
+    B2["fa:fa-file-lines Append Blob<br/>Optimised for log appending<br/>Write-only after sealing a block"]:::leaf
+    B3["fa:fa-hard-drive Page Blob<br/>Random read/write access<br/>Backing VHD files"]:::leaf
+
+    SA --> C1 & C2
+    C1 --> B1 & B2 & B3
+```
+
+**Block blobs** are what you use for almost everything — uploads, downloads, backups, data lake files. **Append blobs** are for log ingestion. **Page blobs** back Azure VM disks (Managed Disks abstract them away in most cases).
+
+---
+
+## Access Tiers
+
+Azure Blob Storage has four access tiers. Pricing below is approximate East US rates:
+
+| Tier | $/GB-month | Read Ops (per 10k) | Retrieval Fee | Rehydration Latency | Min Duration |
+|---|---|---|---|---|---|
+| **Hot** | $0.018 | $0.004 | None | — | None |
+| **Cool** | $0.01 | $0.01 | $0.01/GB | — | 30 days |
+| **Cold** | $0.0045 | $0.02 | $0.05/GB | — | 90 days |
+| **Archive** | $0.0018 | — | $0.02/GB | 1–15 hrs | 180 days |
+
+<Callout type="warning" title="Archive is Offline">
+The Archive tier takes objects **offline**. A blob in Archive cannot be read directly — it must first be **rehydrated** to Hot or Cool tier. Rehydration can take up to 15 hours with standard priority, or 1 hour with high priority (at a higher fee). Plan this into any restore workflow.
+</Callout>
+
+### Access Tier Decision Flow
+
+```mermaid
+flowchart TD
+    accTitle: Azure Blob access tier selection
+    accDescr: Decision tree for choosing the right Azure Blob Storage access tier based on access frequency, retrieval latency tolerance, and minimum storage duration constraints.
+    classDef q    fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef mid  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef cold fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef arch fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    START{"fa:fa-circle-question How often<br/>is the data accessed?"}:::q
+    Q_LATENCY{"fa:fa-circle-question Immediate retrieval<br/>required?"}:::q
+
+    HOT["fa:fa-fire Hot<br/>$0.018/GB<br/>No retrieval fee<br/>Daily workloads"]:::ok
+    COOL["fa:fa-snowflake Cool<br/>$0.01/GB<br/>Monthly access<br/>30-day minimum"]:::mid
+    COLD["fa:fa-temperature-low Cold<br/>$0.0045/GB<br/>Quarterly access<br/>90-day minimum"]:::cold
+    ARCHIVE["fa:fa-box-archive Archive<br/>$0.0018/GB<br/>Offline — must rehydrate<br/>180-day minimum"]:::arch
+
+    START -->|"Daily / frequent"| HOT
+    START -->|"Monthly"| COOL
+    START -->|"Quarterly or less"| Q_LATENCY
+    Q_LATENCY -->|"Yes — ms reads"| COLD
+    Q_LATENCY -->|"No — hours OK"| ARCHIVE
+```
+
+---
+
+## Core Azure CLI Operations
+
+<CodeTabs tabs={[
+  { label: "Azure CLI", lang: "bash", code: `# Create a storage account (LRS replication, Hot default tier)
+az storage account create \
+  --name mycompanybackups \
+  --resource-group my-rg \
+  --location eastus \
+  --sku Standard_LRS \
+  --kind StorageV2 \
+  --access-tier Hot
+
+# Create a container
+az storage container create \
+  --name reports \
+  --account-name mycompanybackups \
+  --auth-mode login
+
+# Upload a file as a block blob
+az storage blob upload \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name 2024/q4/report.csv \
+  --file ./report.csv \
+  --auth-mode login
+
+# Upload a directory (recursive)
+az storage blob upload-batch \
+  --account-name mycompanybackups \
+  --destination reports \
+  --source ./exports/ \
+  --auth-mode login
+
+# Download a blob
+az storage blob download \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name 2024/q4/report.csv \
+  --file ./report-downloaded.csv \
+  --auth-mode login
+
+# List blobs with a prefix
+az storage blob list \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --prefix 2024/q4/ \
+  --output table` },
+  { label: "Access Tier", lang: "bash", code: `# Upload directly to Cool tier
+az storage blob upload \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name archive/2022/annual.csv \
+  --file ./annual.csv \
+  --tier Cool \
+  --auth-mode login
+
+# Change tier on an existing blob
+az storage blob set-tier \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name archive/2022/annual.csv \
+  --tier Archive \
+  --auth-mode login
+
+# Rehydrate a blob from Archive to Hot (standard priority)
+az storage blob set-tier \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name archive/2022/annual.csv \
+  --tier Hot \
+  --rehydrate-priority Standard \
+  --auth-mode login` },
+]} />
+
+---
+
+## Lifecycle Management
+
+Lifecycle management policies automatically transition blobs between tiers and delete expired blobs, eliminating manual tier management at scale.
+
+```mermaid
+flowchart LR
+    accTitle: Azure Blob lifecycle transition pipeline
+    accDescr: How Azure Blob Storage lifecycle management automatically moves blobs from Hot to Cool to Cold to Archive and optionally deletes them based on age since last modification.
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef mid  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    classDef cold fill:none,stroke:#6366f1,color:#6366f1,rx:8,ry:8
+    classDef arch fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    UPLOAD["fa:fa-circle-dot Upload<br/>Day 0"]:::ok
+    HOT["fa:fa-fire Hot<br/>Days 0–29<br/>$0.018/GB"]:::ok
+    COOL["fa:fa-snowflake Cool<br/>Day 30+<br/>$0.01/GB"]:::mid
+    COLD["fa:fa-temperature-low Cold<br/>Day 90+<br/>$0.0045/GB"]:::cold
+    ARCHIVE["fa:fa-box-archive Archive<br/>Day 180+<br/>$0.0018/GB<br/>Must rehydrate to read"]:::arch
+    DELETE["fa:fa-trash Delete<br/>Day 365"]:::arch
+
+    UPLOAD --> HOT
+    HOT -->|"+30 days"| COOL
+    COOL -->|"+60 days"| COLD
+    COLD -->|"+90 days"| ARCHIVE
+    ARCHIVE -->|"+185 days"| DELETE
+```
+
+<CodeTabs tabs={[
+  { label: "Azure CLI", lang: "bash", code: `# Apply a lifecycle policy from a JSON file
+az storage account management-policy create \
+  --account-name mycompanybackups \
+  --resource-group my-rg \
+  --policy @lifecycle-policy.json` },
+  { label: "lifecycle-policy.json", lang: "json", code: `{
+  "rules": [
+    {
+      "name": "archive-reports",
+      "enabled": true,
+      "type": "Lifecycle",
+      "definition": {
+        "filters": {
+          "blobTypes": ["blockBlob"],
+          "prefixMatch": ["reports/"]
+        },
+        "actions": {
+          "baseBlob": {
+            "tierToCool": { "daysAfterModificationGreaterThan": 30 },
+            "tierToCold": { "daysAfterModificationGreaterThan": 90 },
+            "tierToArchive": { "daysAfterModificationGreaterThan": 180 },
+            "delete": { "daysAfterModificationGreaterThan": 365 }
+          },
+          "snapshot": {
+            "delete": { "daysAfterCreationGreaterThan": 30 }
+          }
+        }
+      }
+    }
+  ]
+}` },
+]} />
+
+---
+
+## Access Control
+
+Azure Blob Storage supports two access control models that can be used together:
+
+```mermaid
+flowchart TD
+    accTitle: Azure Blob Storage access control models
+    accDescr: The two access control mechanisms for Azure Blob Storage — RBAC for identity-based access via Azure AD, and SAS tokens for time-limited scoped access without sharing account keys.
+    classDef step fill:none,stroke:#3b82f6,color:#3b82f6,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef warn fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef fail fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    REQ["fa:fa-globe Request to Blob Storage"]:::step
+
+    RBAC["fa:fa-user-shield RBAC (Entra ID)<br/>Assign built-in roles to<br/>users, groups, or managed identities<br/>Granularity: account or container"]:::ok
+    SAS["fa:fa-key SAS Token<br/>Time-limited signed URL<br/>Scoped to account / container / blob<br/>No Entra ID required"]:::warn
+    KEY["fa:fa-lock Account Key<br/>Full admin access<br/>Avoid in applications — use SAS or RBAC"]:::fail
+
+    REQ --> RBAC & SAS & KEY
+
+    RBAC_ROLES["Storage Blob Data Reader<br/>Storage Blob Data Contributor<br/>Storage Blob Data Owner"]:::ok
+    SAS_TYPES["Service SAS (1 resource)<br/>Account SAS (multiple services)<br/>User Delegation SAS (Entra-signed)"]:::warn
+
+    RBAC --> RBAC_ROLES
+    SAS --> SAS_TYPES
+```
+
+<Callout type="tip" title="Use User Delegation SAS">
+Prefer **User Delegation SAS** over Service SAS or Account SAS. It is signed using an Entra ID credential rather than the storage account key, so it can be revoked by revoking the delegating identity. Account keys grant full storage account access if leaked and are expensive to rotate.
+</Callout>
+
+<CodeTabs tabs={[
+  { label: "RBAC (Azure CLI)", lang: "bash", code: `# Assign Storage Blob Data Contributor to a managed identity
+az role assignment create \
+  --assignee <managed-identity-object-id> \
+  --role "Storage Blob Data Contributor" \
+  --scope /subscriptions/<sub-id>/resourceGroups/my-rg/providers/Microsoft.Storage/storageAccounts/mycompanybackups/blobServices/default/containers/reports
+
+# Assign Storage Blob Data Reader at the account level
+az role assignment create \
+  --assignee <user-or-sp-object-id> \
+  --role "Storage Blob Data Reader" \
+  --scope /subscriptions/<sub-id>/resourceGroups/my-rg/providers/Microsoft.Storage/storageAccounts/mycompanybackups` },
+  { label: "SAS Token (Azure CLI)", lang: "bash", code: `# Generate a User Delegation SAS for a single blob (read, 1 hour)
+az storage blob generate-sas \
+  --account-name mycompanybackups \
+  --container-name reports \
+  --name 2024/q4/report.csv \
+  --permissions r \
+  --expiry $(date -u -v+1H '+%Y-%m-%dT%H:%MZ') \
+  --auth-mode login \
+  --as-user \
+  --full-uri
+
+# Generate a Service SAS for a container (read + list, 24 hours)
+az storage container generate-sas \
+  --account-name mycompanybackups \
+  --name reports \
+  --permissions rl \
+  --expiry $(date -u -v+24H '+%Y-%m-%dT%H:%MZ') \
+  --auth-mode login` },
+]} />
+
+---
+
+## Blob Storage Pricing Model
+
+```mermaid
+flowchart TD
+    accTitle: Azure Blob Storage pricing components
+    accDescr: The four billing dimensions of Azure Blob Storage — storage capacity, operations, data transfer, and optional features — and how they contribute to the total monthly cost.
+    classDef step fill:none,stroke:#f59e0b,color:#f59e0b,rx:8,ry:8
+    classDef ok   fill:none,stroke:#22c55e,color:#22c55e,rx:8,ry:8
+    classDef warn fill:none,stroke:#ef4444,color:#ef4444,rx:8,ry:8
+    classDef mid  fill:none,stroke:#f97316,color:#f97316,rx:8,ry:8
+    linkStyle default stroke-width:2.5px
+
+    BILL["fa:fa-file Azure Blob Monthly Bill"]:::step
+    STORE["fa:fa-database Capacity<br/>$/GB-month per tier<br/>Hot: $0.018 · Archive: $0.0018"]:::ok
+    OPS["fa:fa-server Operations<br/>Write/List: $0.055/10k<br/>Read: $0.0044/10k (Hot)"]:::mid
+    XFER["fa:fa-globe Data Egress<br/>Inbound: free<br/>Outbound (internet): $0.08/GB<br/>Same-region services: free"]:::warn
+    FEAT["fa:fa-tag Optional Features<br/>Soft delete · Versioning<br/>Lifecycle management<br/>Geo-redundancy premium"]:::mid
+
+    BILL --> STORE & OPS & XFER & FEAT
+```
+
+<Callout type="tip" title="LRS vs GRS Cost">
+Locally Redundant Storage (LRS) replicates within one datacenter. Geo-Redundant Storage (GRS) replicates to a paired region — roughly 2× the storage cost. For disaster recovery you rarely need GRS for all blobs; use lifecycle policies to move old data to LRS-only Archive instead.
+</Callout>
+
+---
+
+<Quiz
+  question="A blob is uploaded to Cool tier. It is deleted after 10 days. What is charged?"
+  options={[
+    { label: "10 days of Cool storage only" },
+    { label: "30 days of Cool storage — the minimum retention fee applies", correct: true },
+    { label: "10 days of Hot storage as a penalty" },
+    { label: "Nothing — Cool tier has no minimum" },
+  ]}
+  explanation="The Cool tier has a 30-day minimum storage duration. Deleting after 10 days still incurs the full 30-day minimum charge. Cold tier has a 90-day minimum; Archive has 180 days."
+/>
+
+<Quiz
+  question="Your application needs to upload files directly from user browsers to Azure Blob Storage without proxying through your backend server. What is the recommended approach?"
+  options={[
+    { label: "Share the storage account key with the frontend" },
+    { label: "Make the container publicly accessible" },
+    { label: "Generate a short-lived User Delegation SAS URL on the backend and return it to the frontend", correct: true },
+    { label: "Assign Storage Blob Data Contributor to anonymous users" },
+  ]}
+  explanation="Generating a short-lived User Delegation SAS on the backend lets the browser upload directly to Blob Storage with scoped, time-limited permission. The account key must never be exposed client-side, and public containers bypass access control entirely."
+/>

@@ -1,0 +1,335 @@
+---
+title: "Shell and Scripting"
+description: "Bash fundamentals, variables, control flow, functions, and writing reliable shell scripts"
+order: 4
+duration: 20
+tags: ["bash", "scripting", "shell", "variables", "functions", "automation"]
+icon: "mdi:code-greater-than"
+certifications: ["Linux Foundation LFCS", "CompTIA Linux+", "RHCSA"]
+---
+import Callout from '../../components/mdx/Callout.astro';
+import KeyPoints from '../../components/mdx/KeyPoints.astro';
+import Quiz from '../../components/mdx/Quiz.astro';
+
+The shell is not just a way to run programs — it's a full programming environment. Shell scripts glue tools together, automate repetitive tasks, and are the lingua franca of DevOps and system administration. A script that would take 50 lines in Python can often be 5 lines in bash.
+
+<KeyPoints>
+- Variables, quoting rules, and command substitution
+- Conditionals: `if`, `test`, and `[[ ]]` expressions
+- Loops: `for`, `while`, `until`
+- Functions, arguments, and return values
+- Pipelines, redirection, and process substitution
+- Writing reliable scripts: `set -euo pipefail`, traps, and error handling
+</KeyPoints>
+
+---
+
+## Variables and Quoting
+
+```bash
+# Assign (no spaces around =)
+name="Alice"
+count=42
+path="/home/alice/docs"
+
+# Reference
+echo $name           # Alice  (unquoted — word-splits on whitespace)
+echo "$name"         # Alice  (quoted — safe, preserves spaces)
+echo "${name}_file"  # Alice_file  (brace syntax for disambiguation)
+
+# Readonly
+readonly MAX_RETRIES=3
+
+# Export to child processes
+export APP_ENV="production"
+```
+
+**Quoting rules — get these right:**
+
+```bash
+file="my documents/report.txt"
+
+cp $file /tmp         # WRONG: splits on space → cp my documents/report.txt /tmp
+cp "$file" /tmp       # RIGHT: treats as one argument
+
+# Single quotes: no interpolation at all
+echo '$HOME'          # prints literally: $HOME
+echo "$HOME"          # prints: /home/alice
+
+# Command substitution
+today=$(date +%Y-%m-%d)    # modern syntax (preferred)
+today=`date +%Y-%m-%d`     # legacy backtick syntax (avoid)
+
+# Arithmetic
+result=$((count + 10))
+result=$(( count * 2 ))
+```
+
+---
+
+## Special Variables
+
+```bash
+$0          # script name
+$1 .. $9    # positional arguments ($1 = first, $2 = second...)
+$#          # number of arguments
+$@          # all arguments (each quoted separately — use this)
+$*          # all arguments (as single word — rarely what you want)
+$?          # exit code of last command (0 = success)
+$$          # PID of current shell
+$!          # PID of last background process
+
+#!/usr/bin/env bash
+echo "Script: $0"
+echo "First arg: $1"
+echo "All args: $@"
+echo "Arg count: $#"
+
+ls /nonexistent
+echo "Exit code: $?"   # 2 (ls exit code for not found)
+```
+
+---
+
+## Conditionals
+
+### `if` / `elif` / `else`
+
+```bash
+if [[ "$USER" == "root" ]]; then
+  echo "Running as root"
+elif [[ -n "$SUDO_USER" ]]; then
+  echo "Elevated via sudo by $SUDO_USER"
+else
+  echo "Regular user: $USER"
+fi
+```
+
+### `[[ ]]` Test Expressions
+
+| Expression | True when |
+|---|---|
+| `[[ -f "$file" ]]` | File exists and is a regular file |
+| `[[ -d "$dir" ]]` | Directory exists |
+| `[[ -e "$path" ]]` | Path exists (file, dir, symlink) |
+| `[[ -r "$file" ]]` | File is readable by current user |
+| `[[ -z "$var" ]]` | Variable is empty/unset |
+| `[[ -n "$var" ]]` | Variable is non-empty |
+| `[[ "$a" == "$b" ]]` | Strings are equal |
+| `[[ "$a" != "$b" ]]` | Strings are not equal |
+| `[[ "$a" =~ regex ]]` | String matches regex |
+| `[[ $n -eq 0 ]]` | Numbers equal (`-ne`, `-lt`, `-le`, `-gt`, `-ge`) |
+
+```bash
+# Combine with && and ||
+if [[ -f "/etc/nginx/nginx.conf" && -r "/etc/nginx/nginx.conf" ]]; then
+  echo "nginx config is present and readable"
+fi
+
+# Inline with && / ||
+[[ -d "/var/log/app" ]] || mkdir -p "/var/log/app"
+[[ -f "$config" ]] && source "$config"
+```
+
+<Callout type="warning">
+Always use `[[ ]]` (double brackets) in bash scripts, not `[ ]` (single brackets). `[[ ]]` is a bash builtin with safer string handling, regex support, and no word-splitting issues. `[ ]` is POSIX `test` — use it only when you need `sh` portability.
+</Callout>
+
+---
+
+## Loops
+
+```bash
+# for loop over a list
+for host in web-01 web-02 web-03; do
+  echo "Deploying to $host"
+  ssh "$host" "sudo systemctl restart app"
+done
+
+# for loop over files
+for file in /var/log/*.log; do
+  gzip "$file"
+done
+
+# C-style for loop
+for ((i = 0; i < 10; i++)); do
+  echo "Iteration $i"
+done
+
+# while loop
+count=0
+while [[ $count -lt 5 ]]; do
+  echo "Count: $count"
+  ((count++))
+done
+
+# Read lines from a file
+while IFS= read -r line; do
+  echo "Processing: $line"
+done < /etc/hosts
+
+# until loop (runs while condition is FALSE)
+until curl -sf http://localhost:8080/health; do
+  echo "Waiting for service..."
+  sleep 2
+done
+```
+
+---
+
+## Functions
+
+```bash
+# Define
+greet() {
+  local name="$1"   # local: scoped to this function
+  echo "Hello, $name!"
+}
+
+# Call
+greet "Alice"       # Hello, Alice!
+
+# Return values: use stdout capture or a global variable
+get_ip() {
+  local interface="$1"
+  ip addr show "$interface" | awk '/inet / {print $2}' | cut -d/ -f1
+}
+
+ip_addr=$(get_ip eth0)
+echo "IP: $ip_addr"
+
+# Exit codes as "return values"
+is_running() {
+  systemctl is-active --quiet "$1"
+}
+
+if is_running nginx; then
+  echo "nginx is up"
+fi
+```
+
+---
+
+## Pipelines and Redirection
+
+```bash
+# Redirect stdout to file (overwrite)
+ls -la > listing.txt
+
+# Append
+ls -la >> listing.txt
+
+# Redirect stderr
+ls /nonexistent 2> errors.txt
+
+# Redirect both stdout and stderr
+ls /var/log /nonexistent > output.txt 2>&1
+ls /var/log /nonexistent &> output.txt   # bash shorthand
+
+# Discard output
+some_noisy_command > /dev/null 2>&1
+
+# Pipe stdout of one command to stdin of next
+cat /var/log/auth.log | grep "Failed password" | awk '{print $11}' | sort | uniq -c | sort -rn | head -20
+
+# Process substitution (gives a command as a file descriptor)
+diff <(sort file1.txt) <(sort file2.txt)
+```
+
+### Heredoc
+
+```bash
+# Write multi-line text without a separate file
+cat > /etc/app/config.yaml << 'EOF'
+server:
+  port: 8080
+  host: 0.0.0.0
+database:
+  url: postgres://localhost/myapp
+EOF
+# Single-quoted 'EOF' prevents variable expansion inside the block
+```
+
+---
+
+## Writing Reliable Scripts
+
+The most important thing you can add to any script:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+```
+
+| Option | Effect |
+|---|---|
+| `-e` | Exit immediately if any command fails (non-zero exit code) |
+| `-u` | Treat unset variables as errors — prevents silent bugs |
+| `-o pipefail` | A pipeline fails if **any** command in it fails (not just the last) |
+
+**Traps for cleanup:**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+TMPDIR=$(mktemp -d)
+
+# Always clean up, even on error or Ctrl+C
+cleanup() {
+  rm -rf "$TMPDIR"
+  echo "Cleaned up temp dir"
+}
+trap cleanup EXIT
+
+# Script body — if anything fails, cleanup still runs
+cp large_file.tar.gz "$TMPDIR/"
+tar -xzf "$TMPDIR/large_file.tar.gz" -C "$TMPDIR"
+./deploy.sh "$TMPDIR"
+```
+
+**Script template — a safe starting point:**
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage / help
+usage() {
+  echo "Usage: $(basename "$0") <env> <version>"
+  echo "  env:     staging | production"
+  echo "  version: e.g. 1.4.2"
+  exit 1
+}
+
+# Validate arguments
+[[ $# -ne 2 ]] && usage
+ENV="$1"
+VERSION="$2"
+
+[[ "$ENV" != "staging" && "$ENV" != "production" ]] && {
+  echo "Error: invalid env '$ENV'"
+  usage
+}
+
+echo "Deploying v${VERSION} to ${ENV}..."
+# ... rest of script
+```
+
+<Callout type="tip">
+Use `shellcheck` to lint your scripts before running them — it catches common mistakes like unquoted variables, incorrectly used `[` vs `[[`, and shadowed builtins. Install with `apt install shellcheck` or `brew install shellcheck`.
+</Callout>
+
+---
+
+<Quiz
+  question="Your script contains: `files=$(ls /data/*.csv)`. What problem does this have?"
+  options={[
+    "ls returns an exit code, not output — use find instead",
+    "The output is a string, so filenames with spaces or newlines will be split incorrectly when iterated",
+    "ls cannot be captured with $() — only backticks work",
+    "This is fine — $() always preserves whitespace correctly"
+  ]}
+  answer="The output is a string, so filenames with spaces or newlines will be split incorrectly when iterated"
+  explanation="Parsing ls output is a well-known antipattern. The correct approach is: `for f in /data/*.csv; do ... done` — bash expands the glob directly into an array of properly-quoted paths. Another option for complex cases is `find /data -name '*.csv' -print0 | while IFS= read -r -d '' f; do ... done` which handles all special characters including newlines."
+/>
